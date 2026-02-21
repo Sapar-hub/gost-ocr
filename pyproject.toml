@@ -1,0 +1,23 @@
+[project]
+name = "gost-ocr"
+version = "0.1.0"
+description = "Extract metadata from drawings with accordance to GOST standards"
+readme = "README.md"
+authors = [
+    { name = "Saparmyrat", email = "183649607+Sapar-hub@users.noreply.github.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "easyocr>=1.7.2",
+    "numpy>=2.4.2",
+    "opencv-python>=4.13.0.92",
+    "typer>=0.23.0",
+]
+
+[project.scripts]
+gost-ocr = "gost_ocr.cli:app"
+gost-ocr-setup = "gost_ocr.setup:main" 
+
+[build-system]
+requires = ["uv_build>=0.9.22,<0.10.0"]
+build-backend = "uv_build"
