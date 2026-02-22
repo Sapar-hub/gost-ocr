@@ -9,6 +9,7 @@ import numpy as np
 
 from .config import (
     DEBUG_PREPROCESSING_DIR,
+    DEBUG_PREPROCESSING_ROI_DIR,
     DESKEW_MAX_LINE_GAP,
     DESKEW_MIN_LINE_LENGTH,
     DESKEW_THRESHOLD,
@@ -97,17 +98,32 @@ def extract_roi(
 ) -> tuple[np.ndarray, tuple[int, int, int, int]]:
     h, w = image.shape[:2]
 
-    roi_w = int(w * ROI_WIDTH_RATIO)
-    roi_h = int(h * ROI_HEIGHT_RATIO)
+    # Ratios for width and height
+    w_ratio = ROI_WIDTH_RATIO
+    h_ratio = ROI_HEIGHT_RATIO
 
-    positions = {
-        "bottom_right": (w - roi_w, h - roi_h),
-        "bottom_left": (0, h - roi_h),
-        "top_right": (w - roi_w, 0),
-        "top_left": (0, 0),
-    }
+    half_w = int(w * w_ratio)
+    half_h = int(h * h_ratio)
 
-    x, y = positions.get(roi_position, positions["bottom_right"])
+    if roi_position == "bottom_right":
+        x, y, roi_w, roi_h = w - half_w, h - half_h, half_w, half_h
+    elif roi_position == "bottom_left":
+        x, y, roi_w, roi_h = 0, h - half_h, half_w, half_h
+    elif roi_position == "top_right":
+        x, y, roi_w, roi_h = w - half_w, 0, half_w, half_h
+    elif roi_position == "top_left":
+        x, y, roi_w, roi_h = 0, 0, half_w, half_h
+    elif roi_position == "bottom":
+        x, y, roi_w, roi_h = 0, h - half_h, w, half_h
+    elif roi_position == "top":
+        x, y, roi_w, roi_h = 0, 0, w, half_h
+    elif roi_position == "left":
+        x, y, roi_w, roi_h = 0, 0, half_w, h
+    elif roi_position == "right":
+        x, y, roi_w, roi_h = w - half_w, 0, half_w, h
+    else:  # Default to bottom_right
+        x, y, roi_w, roi_h = w - half_w, h - half_h, half_w, half_h
+
     roi = image[y : y + roi_h, x : x + roi_w]
 
     return roi, (x, y, roi_w, roi_h)
@@ -122,10 +138,15 @@ def load_images(
     input_path = Path(input_path)
     flip_angles = flip_angles or [0]
 
+    # Validate input path
+    if not input_path.exists():
+        raise FileNotFoundError(f"Указанный путь не существует: {input_path}")
+
     image_files = []
     if input_path.is_file():
-        if input_path.suffix.lower() in [".png", ".jpg", ".jpeg"]:
-            image_files = [input_path]
+        if input_path.suffix.lower() not in [".png", ".jpg", ".jpeg"]:
+            raise ValueError(f"Неподдерживаемый тип файла: {input_path.suffix}")
+        image_files = [input_path]
     elif input_path.is_dir():
         image_files = [
             f
@@ -133,14 +154,18 @@ def load_images(
             if f.suffix.lower() in [".png", ".jpg", ".jpeg"]
         ]
 
-    print(f"Загружено файлов: {len(image_files)}")
+    if not image_files:
+        print(f"В '{input_path}' не найдено изображений для обработки.")
+        return []
+
+    print(f"Найдено файлов для обработки: {len(image_files)}")
 
     results: list[PreprocessedImage] = []
 
     for img_path in image_files:
         image = cv2.imread(str(img_path))
         if image is None:
-            print(f"  Не удалось загрузить: {img_path.name}")
+            print(f"  Warning: Не удалось загрузить или поврежден файл: {img_path.name}. Пропускается.")
             continue
 
         for flip_angle in flip_angles:
@@ -161,6 +186,7 @@ def load_images(
 
             if debug:
                 DEBUG_PREPROCESSING_DIR.mkdir(parents=True, exist_ok=True)
+                DEBUG_PREPROCESSING_ROI_DIR.mkdir(parents=True, exist_ok=True)
                 suffix = f"_flip{flip_angle}" if flip_angle != 0 else ""
                 name = img_path.stem
 
@@ -169,7 +195,7 @@ def load_images(
                     deskewed,
                 )
                 cv2.imwrite(
-                    str(DEBUG_PREPROCESSING_DIR / f"{name}{suffix}_roi.png"),
+                    str(DEBUG_PREPROCESSING_ROI_DIR / f"{name}{suffix}_roi.png"),
                     roi_image,
                 )
 

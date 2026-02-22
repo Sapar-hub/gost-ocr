@@ -26,7 +26,7 @@ def preprocess(
     roi_position: Annotated[
         str,
         typer.Option(
-            "--roi", help="Позиция ROI: bottom_right, bottom_left, top_right, top_left"
+            "--roi", help="Позиция ROI: top, bottom, left, right, top_left, top_right, bottom_left, bottom_right"
         ),
     ] = "bottom_right",
     debug: Annotated[
@@ -54,7 +54,7 @@ def run_pipeline(
     roi_position: Annotated[
         str,
         typer.Option(
-            "--roi", help="Позиция ROI: bottom_right, bottom_left, top_right, top_left"
+            "--roi", help="Позиция ROI: top, bottom, left, right, top_left, top_right, bottom_left, bottom_right"
         ),
     ] = "bottom_right",
     debug: Annotated[
@@ -118,7 +118,7 @@ def extract_alias(
     roi_position: Annotated[
         str,
         typer.Option(
-            "--roi", help="Позиция ROI: bottom_right, bottom_left, top_right, top_left"
+            "--roi", help="Позиция ROI: top, bottom, left, right, top_left, top_right, bottom_left, bottom_right"
         ),
     ] = "bottom_right",
     debug: Annotated[
