@@ -1,0 +1,11 @@
+{
+    "source_image_path": "/home/saparch/playground/metrogiprotrans/src/gost_ocr/tests/test_images/1744960646_nasos-jecn-325.jpg",
+    "stamp_bbox": [
+        1705,
+        1263,
+        28,
+        7
+    ],
+    "text_blocks": [],
+    "full_text": ""
+}
