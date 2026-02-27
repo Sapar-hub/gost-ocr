@@ -1,5 +1,5 @@
 {
-    "source_image_path": "/home/saparch/playground/metrogiprotrans/src/gost_ocr/tests/test_images/1757253748_shtucer_deskewed.jpg",
+    "source_image_path": "src/gost_ocr/tests/test_images/deskewed/1757253748_shtucer_deskewed.jpg",
     "stamp_bbox": [
         872,
         896,

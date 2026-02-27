@@ -1,5 +1,5 @@
 {
-    "source_image_path": "/home/saparch/playground/metrogiprotrans/src/gost_ocr/tests/test_images/1761739613_reduktor-chervjachnyj_-vid-obschij_deskewed.jpg",
+    "source_image_path": "src/gost_ocr/tests/test_images/deskewed/1761739613_reduktor-chervjachnyj_-vid-obschij_deskewed.jpg",
     "stamp_bbox": [
         951,
         638,

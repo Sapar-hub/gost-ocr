@@ -41,6 +41,8 @@ def main():
         "1761739613_reduktor-chervjachnyj_-vid-obschij.jpg",
         "1757253748_shtucer.jpg",
         "1760763253_shema-stropilnoj-sistemy.jpg",
+        "2.png",
+        "1761739668_vedomyj-val.jpg"
     ]
 
     for img_name in images_to_deskew:
