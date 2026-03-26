@@ -146,3 +146,12 @@ gost-ocr pipeline samples/ --roi bottom_right --debug
     "full_text": "ИЗМ\nЛист\nМГТ-2024-ПЗ..."
 }
 ```
+
+## Usage preview
+
+<video src="https://github.com/user-attachments/assets/b1913a1a-7479-4f1f-ba1a-ba56507206c2" autoplay muted playsinline controls width="600" height="360" >
+    Your browser does not support the video tag.
+</video>
+
+<video src="https://github.com/user-attachments/assets/95f0faad-95b4-4f8a-b147-ff2935fbba96" autoplay muted playsinline controls width="600" height="360">    
+</video>
