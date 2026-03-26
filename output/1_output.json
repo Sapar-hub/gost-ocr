@@ -1,5 +1,5 @@
 {
-    "source_image_path": "/home/saparch/playground/metrogiprotrans/src/gost_ocr/tests/test_images/1.png",
+    "source_image_path": "src/gost_ocr/tests/test_images/1.png",
     "stamp_bbox": [
         493,
         504,

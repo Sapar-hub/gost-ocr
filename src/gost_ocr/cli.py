@@ -5,7 +5,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 import typer
-from typing_extensions import Annotated
+from typing import Annotated
 
 from .config import DEFAULT_IMAGES_PATH, OUTPUT_DIR
 from .extraction import extract_text
