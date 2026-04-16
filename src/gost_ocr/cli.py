@@ -31,13 +31,20 @@ def preprocess(
             help="Позиция ROI: top, bottom, left, right, top_left, top_right, bottom_left, bottom_right, full_page, corners (все углы)",
         ),
     ] = "bottom_right",
-    adaptive_roi: Annotated[
+    dpi_roi: Annotated[
         bool,
         typer.Option(
-            "--adaptive-roi/--no-adaptive-roi",
-            help="Адаптивный ROI на основе DPI (по умолчанию выкл)",
+            "--dpi-roi/--no-dpi-roi",
+            help="DPI-based ROI calculation (по умолчанию выкл)",
         ),
     ] = False,
+    filter_by_size: Annotated[
+        bool,
+        typer.Option(
+            "--filter-by-size/--no-filter-by-size",
+            help="Filter stamps by size config (по умолчанию вкл)",
+        ),
+    ] = True,
     debug: Annotated[
         bool, typer.Option("--debug", "-d", help="Сохранять промежуточные результаты")
     ] = False,
@@ -53,7 +60,7 @@ def preprocess(
                 path,
                 flip_angles=flip_angles,
                 roi_position=corner,
-                adaptive_roi=adaptive_roi,
+                dpi_roi=dpi_roi,
                 debug=debug,
             )
             all_results.extend(results)
@@ -63,7 +70,7 @@ def preprocess(
             path,
             flip_angles=flip_angles,
             roi_position=roi_position,
-            adaptive_roi=adaptive_roi,
+            dpi_roi=dpi_roi,
             debug=debug,
         )
         return results
@@ -87,13 +94,20 @@ def run_pipeline(
             help="Позиция ROI: top, bottom, left, right, top_left, top_right, bottom_left, bottom_right, full_page, corners (все углы)",
         ),
     ] = "bottom_right",
-    adaptive_roi: Annotated[
+    dpi_roi: Annotated[
         bool,
         typer.Option(
-            "--adaptive-roi/--no-adaptive-roi",
-            help="Адаптивный ROI на основе DPI (по умолчанию выкл)",
+            "--dpi-roi/--no-dpi-roi",
+            help="DPI-based ROI calculation (по умолчанию выкл)",
         ),
     ] = False,
+    filter_by_size: Annotated[
+        bool,
+        typer.Option(
+            "--filter-by-size/--no-filter-by-size",
+            help="Filter stamps by size config (по умолчанию вкл)",
+        ),
+    ] = True,
     debug: Annotated[
         bool, typer.Option("--debug", "-d", help="Сохранять промежуточные результаты")
     ] = False,
@@ -120,13 +134,16 @@ def run_pipeline(
                 path,
                 flip_angles=flip_angles,
                 roi_position=corner,
-                adaptive_roi=adaptive_roi,
+                dpi_roi=dpi_roi,
                 debug=debug,
             )
             all_preprocessed.extend(preprocessed_images)
 
             loc_results = localize_images(
-                preprocessed_images, draw_all=False, debug=debug
+                preprocessed_images,
+                draw_all=False,
+                debug=debug,
+                filter_by_size=filter_by_size,
             )
             all_localization.extend(loc_results)
 
@@ -137,11 +154,14 @@ def run_pipeline(
             path,
             flip_angles=flip_angles,
             roi_position=roi_position,
-            adaptive_roi=adaptive_roi,
+            dpi_roi=dpi_roi,
             debug=debug,
         )
         localization_results = localize_images(
-            preprocessed_images, draw_all=False, debug=debug
+            preprocessed_images,
+            draw_all=False,
+            debug=debug,
+            filter_by_size=filter_by_size,
         )
 
     found_count = sum(1 for r in localization_results if r.stamp is not None)
@@ -189,13 +209,20 @@ def localize(
             help="Позиция ROI: top, bottom, left, right, top_left, top_right, bottom_left, bottom_right, full_page, corners (все углы)",
         ),
     ] = "bottom_right",
-    adaptive_roi: Annotated[
+    dpi_roi: Annotated[
         bool,
         typer.Option(
-            "--adaptive-roi/--no-adaptive-roi",
-            help="Адаптивный ROI на основе DPI (по умолчанию выкл)",
+            "--dpi-roi/--no-dpi-roi",
+            help="DPI-based ROI calculation (по умолчанию выкл)",
         ),
     ] = False,
+    filter_by_size: Annotated[
+        bool,
+        typer.Option(
+            "--filter-by-size/--no-filter-by-size",
+            help="Filter stamps by size config (по умолчанию вкл)",
+        ),
+    ] = True,
     debug: Annotated[
         bool, typer.Option("--debug", "-d", help="Сохранять промежуточные результаты")
     ] = False,
@@ -217,13 +244,16 @@ def localize(
                 path,
                 flip_angles=flip_angles,
                 roi_position=corner,
-                adaptive_roi=adaptive_roi,
+                dpi_roi=dpi_roi,
                 debug=debug,
             )
             all_preprocessed.extend(preprocessed_images)
 
             loc_results = localize_images(
-                preprocessed_images, draw_all=False, debug=debug
+                preprocessed_images,
+                draw_all=False,
+                debug=debug,
+                filter_by_size=filter_by_size,
             )
             all_localization.extend(loc_results)
 
@@ -233,11 +263,14 @@ def localize(
             path,
             flip_angles=flip_angles,
             roi_position=roi_position,
-            adaptive_roi=adaptive_roi,
+            dpi_roi=dpi_roi,
             debug=debug,
         )
         localization_results = localize_images(
-            preprocessed_images, draw_all=False, debug=debug
+            preprocessed_images,
+            draw_all=False,
+            debug=debug,
+            filter_by_size=filter_by_size,
         )
 
     found_count = sum(1 for r in localization_results if r.stamp is not None)

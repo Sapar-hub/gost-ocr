@@ -86,7 +86,7 @@ class PreprocessedImage:
     flip_angle: int
     roi_position: str
     dpi: int | None = None
-    adaptive_roi: bool = False
+    dpi_roi: bool = False
 
 
 def rotate_image(image: np.ndarray, angle: float) -> np.ndarray:
@@ -222,7 +222,7 @@ def load_images(
     input_path: Path,
     flip_angles: list[int] | None = None,
     roi_position: str = "bottom_right",
-    adaptive_roi: bool = False,
+    dpi_roi: bool = False,
     debug: bool = False,
 ) -> list[PreprocessedImage]:
     input_path = Path(input_path)
@@ -260,7 +260,7 @@ def load_images(
             )
             continue
 
-        dpi = detect_dpi(image) if adaptive_roi else None
+        dpi = detect_dpi(image) if dpi_roi else None
 
         for flip_angle in flip_angles:
             flipped = flip_image(image, flip_angle) if flip_angle != 0 else image.copy()
@@ -268,7 +268,7 @@ def load_images(
             roi_image, roi_bbox = extract_roi(
                 deskewed,
                 roi_position,
-                adaptive=adaptive_roi,
+                adaptive=dpi_roi,
                 dpi=dpi,
             )
 
@@ -281,7 +281,7 @@ def load_images(
                 flip_angle=flip_angle,
                 roi_position=roi_position,
                 dpi=dpi,
-                adaptive_roi=adaptive_roi,
+                dpi_roi=dpi_roi,
             )
             results.append(result)
 

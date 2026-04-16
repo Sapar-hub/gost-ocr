@@ -47,7 +47,7 @@ def get_depth(i: int, hierarchy: np.ndarray, memo: dict | None = None) -> int:
 
 
 def check_gost_stamp_ratio(
-    contour: np.ndarray, tolerance: float = 0.15, adaptive_roi: bool = False
+    contour: np.ndarray, tolerance: float = 0.15, filter_by_size: bool = False
 ) -> tuple[bool, float, float]:
     x, y, w, h = cv2.boundingRect(contour)
 
@@ -56,7 +56,7 @@ def check_gost_stamp_ratio(
 
     area = w * h
 
-    if adaptive_roi:
+    if filter_by_size:
         if w < MIN_STAMP_WIDTH_PX or w > MAX_STAMP_WIDTH_PX:
             return False, 0.0, 0.0
 
@@ -79,7 +79,7 @@ def check_gost_stamp_ratio(
 
 
 def _find_with_edge_detection(
-    roi: np.ndarray, adaptive_roi: bool = False
+    roi: np.ndarray, filter_by_size: bool = False
 ) -> list[StampCandidate]:
     """Fallback: find stamp using edge detection and contour analysis."""
     gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY) if len(roi.shape) == 3 else roi
@@ -136,7 +136,7 @@ def _find_with_edge_detection(
                                     [[min_x, max_y]],
                                 ]
                             ),
-                            adaptive_roi=adaptive_roi,
+                            filter_by_size=filter_by_size,
                         )
 
                         candidates.append(
@@ -159,7 +159,7 @@ def find_stamp_contours(
     draw_all: bool = False,
     use_dynamic_threshold: bool = True,
     dpi: int | None = None,
-    adaptive_roi: bool = False,
+    filter_by_size: bool = False,
 ) -> list[StampCandidate]:
     gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY) if len(roi.shape) == 3 else roi
 
@@ -245,7 +245,7 @@ def find_stamp_contours(
                     )
 
                     is_valid, aspect, confidence = check_gost_stamp_ratio(
-                        union_contour, adaptive_roi=adaptive_roi
+                        union_contour, filter_by_size=filter_by_size
                     )
 
                     candidate = StampCandidate(
@@ -269,7 +269,7 @@ def find_stamp_contours(
     # Fallback: if no candidates found, try edge detection
     gost_compliant = [c for c in candidates if c.is_gost_compliant]
     if not gost_compliant:
-        edge_candidates = _find_with_edge_detection(roi, adaptive_roi)
+        edge_candidates = _find_with_edge_detection(roi, filter_by_size)
         if edge_candidates:
             candidates = _merge_candidates(candidates, edge_candidates)
 
@@ -435,9 +435,11 @@ def localize_stamp(
     roi = preprocessed.roi_image
     roi_x, roi_y, _, _ = preprocessed.roi_bbox
     dpi = preprocessed.dpi
-    adaptive_roi = preprocessed.adaptive_roi
+    filter_by_size = preprocessed.filter_by_size
 
-    candidates = find_stamp_contours(roi, draw_all, dpi=dpi, adaptive_roi=adaptive_roi)
+    candidates = find_stamp_contours(
+        roi, draw_all, dpi=dpi, filter_by_size=filter_by_size
+    )
 
     if debug:
         DEBUG_LOCALIZATION_DIR.mkdir(parents=True, exist_ok=True)
