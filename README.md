@@ -2,6 +2,11 @@
 
 This project is a prototype of a Python-based CLI utility for automatically locating and recognizing text within the title block (known as "stamp" or "osnovnaya nadpis") of scanned technical drawings that conform to GOST standards.
 
+<details>
+  <summary>Spoiler</summary>
+  By the time this project have been created the similair (tool)[https://github.com/W24-Service-GmbH/werk24-python] in this specific domain had already been existing. But that tool is just a wrapper API client. The logic and extraction process happens in their cloud.  
+</details>
+
 ## About The Project
 
 In design institutes and archives, the manual processing of digitized drawings is a significant challenge. After scanning, documents are saved with technical filenames, and to catalog them, employees must manually open each file, find the title block, and re-type the metadata (such as project code, sheet number, etc.) into registers. This process is slow, monotonous, and prone to human error.
