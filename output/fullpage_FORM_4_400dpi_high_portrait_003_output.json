@@ -1,0 +1,34 @@
+{
+    "source_image_path": "ground_truth/fullpage/fullpage_FORM_4_400dpi_high_portrait_003.png",
+    "stamp_bbox": [
+        1944,
+        2623,
+        1549,
+        1932
+    ],
+    "text_blocks": [
+        {
+            "text": "393",
+            "confidence": 0.9998549172236052,
+            "box": [
+                [
+                    840,
+                    498
+                ],
+                [
+                    884,
+                    498
+                ],
+                [
+                    884,
+                    524
+                ],
+                [
+                    840,
+                    524
+                ]
+            ]
+        }
+    ],
+    "full_text": "393"
+}

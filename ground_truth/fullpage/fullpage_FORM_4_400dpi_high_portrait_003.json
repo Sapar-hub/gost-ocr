@@ -1,0 +1,17 @@
+{
+    "image_path": "ground_truth/fullpage/fullpage_FORM_4_400dpi_high_portrait_003.png",
+    "stamp_bbox": [
+        545,
+        50,
+        2913,
+        1811
+    ],
+    "form_type": "Форма 4",
+    "dpi": 400,
+    "orientation": "portrait",
+    "corner": "top_right",
+    "width_mm": 185,
+    "height_mm": 115,
+    "text": "ИЗМ\nЛист\n№ докум.\nПодпись\nДата",
+    "notes": "Generated: form=FORM_4, dpi=400, artifacts=high, orientation=portrait, corner=top_right, full_page=True"
+}

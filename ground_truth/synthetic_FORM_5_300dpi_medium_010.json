@@ -1,0 +1,15 @@
+{
+    "image_path": "ground_truth/synthetic_FORM_5_300dpi_medium_010.png",
+    "stamp_bbox": [
+        50,
+        1055,
+        3507,
+        649
+    ],
+    "form_type": "Форма 5",
+    "dpi": 300,
+    "width_mm": 297,
+    "height_mm": 55,
+    "text": "ИЗМ\nЛист\n№ докум.\nПодпись\nДата",
+    "notes": "Generated: form=FORM_5, dpi=300, artifacts=medium"
+}

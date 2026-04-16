@@ -18,6 +18,64 @@ from .config import (
 )
 
 
+A4_SIZES = {
+    150: (1754, 2480),
+    200: (1754, 2480),
+    300: (2480, 3508),
+    400: (3508, 4961),
+    600: (4961, 7016),
+}
+A3_SIZES = {
+    150: (2480, 3508),
+    200: (2339, 3307),
+    300: (3508, 4961),
+    400: (4961, 7016),
+    600: (7016, 9933),
+}
+
+
+def detect_dpi(image: np.ndarray) -> int:
+    """Detect DPI from image dimensions."""
+    h, w = image.shape[:2]
+
+    for dpi, (expected_w, expected_h) in A4_SIZES.items():
+        if abs(w - expected_w) < 50 and abs(h - expected_h) < 50:
+            return dpi
+
+    for dpi, (expected_w, expected_h) in A3_SIZES.items():
+        if abs(w - expected_w) < 50 and abs(h - expected_h) < 50:
+            return dpi
+
+    estimated_dpi = int(w / 8.27)
+    return max(150, min(600, estimated_dpi))
+
+
+def calculate_roi_for_dpi(
+    image_shape, dpi, roi_position: str = "bottom_right"
+) -> tuple[int, int, int, int]:
+    """Calculate ROI bbox for given DPI based on expected stamp size."""
+    h, w = image_shape[:2]
+
+    stamp_w = int(297 / 25.4 * dpi * 1.3)  # Form 5 width = 297mm
+    stamp_h = int(115 / 25.4 * dpi * 1.3)  # Form 4 height = 115mm
+
+    stamp_w = min(stamp_w, w - 20)
+    stamp_h = min(stamp_h, h - 20)
+
+    positions = {
+        "bottom_right": (w - stamp_w, h - stamp_h, stamp_w, stamp_h),
+        "bottom_left": (0, h - stamp_h, stamp_w, stamp_h),
+        "top_right": (w - stamp_w, 0, stamp_w, stamp_h),
+        "top_left": (0, 0, stamp_w, stamp_h),
+        "bottom": (0, h - stamp_h, w, stamp_h),
+        "top": (0, 0, w, stamp_h),
+        "left": (0, 0, stamp_w, h),
+        "right": (w - stamp_w, 0, stamp_w, h),
+    }
+
+    return positions.get(roi_position, positions["bottom_right"])
+
+
 @dataclass
 class PreprocessedImage:
     image: np.ndarray
@@ -27,6 +85,8 @@ class PreprocessedImage:
     skew_angle: float
     flip_angle: int
     roi_position: str
+    dpi: int | None = None
+    adaptive_roi: bool = False
 
 
 def rotate_image(image: np.ndarray, angle: float) -> np.ndarray:
@@ -37,6 +97,28 @@ def rotate_image(image: np.ndarray, angle: float) -> np.ndarray:
         image, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE
     )
     return rotated
+
+
+def enhance_contrast(
+    image: np.ndarray, clip_limit: float = 2.0, tile_size: int = 8
+) -> np.ndarray:
+    """Enhance image contrast using CLAHE."""
+    if len(image.shape) == 3:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = image
+
+    clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=(tile_size, tile_size))
+    enhanced = clahe.apply(gray)
+
+    if len(image.shape) == 3:
+        return cv2.cvtColor(enhanced, cv2.COLOR_GRAY2BGR)
+    return enhanced
+
+
+def denoise_image(image: np.ndarray, kernel_size: int = 3) -> np.ndarray:
+    """Apply Gaussian blur to reduce noise before thresholding."""
+    return cv2.GaussianBlur(image, (kernel_size, kernel_size), 0)
 
 
 def flip_image(image: np.ndarray, angle: int) -> np.ndarray:
@@ -94,35 +176,42 @@ def deskew_image(image: np.ndarray) -> tuple[np.ndarray, float]:
 
 
 def extract_roi(
-    image: np.ndarray, roi_position: str = "bottom_right"
+    image: np.ndarray,
+    roi_position: str = "bottom_right",
+    adaptive: bool = False,
+    dpi: int | None = None,
 ) -> tuple[np.ndarray, tuple[int, int, int, int]]:
     h, w = image.shape[:2]
 
-    # Ratios for width and height
-    w_ratio = ROI_WIDTH_RATIO
-    h_ratio = ROI_HEIGHT_RATIO
+    if adaptive and dpi:
+        x, y, roi_w, roi_h = calculate_roi_for_dpi(image.shape, dpi, roi_position)
+    elif roi_position == "full_page":
+        x, y, roi_w, roi_h = 0, 0, w, h
+    else:
+        w_ratio = ROI_WIDTH_RATIO
+        h_ratio = ROI_HEIGHT_RATIO
 
-    half_w = int(w * w_ratio)
-    half_h = int(h * h_ratio)
+        half_w = int(w * w_ratio)
+        half_h = int(h * h_ratio)
 
-    if roi_position == "bottom_right":
-        x, y, roi_w, roi_h = w - half_w, h - half_h, half_w, half_h
-    elif roi_position == "bottom_left":
-        x, y, roi_w, roi_h = 0, h - half_h, half_w, half_h
-    elif roi_position == "top_right":
-        x, y, roi_w, roi_h = w - half_w, 0, half_w, half_h
-    elif roi_position == "top_left":
-        x, y, roi_w, roi_h = 0, 0, half_w, half_h
-    elif roi_position == "bottom":
-        x, y, roi_w, roi_h = 0, h - half_h, w, half_h
-    elif roi_position == "top":
-        x, y, roi_w, roi_h = 0, 0, w, half_h
-    elif roi_position == "left":
-        x, y, roi_w, roi_h = 0, 0, half_w, h
-    elif roi_position == "right":
-        x, y, roi_w, roi_h = w - half_w, 0, half_w, h
-    else:  # Default to bottom_right
-        x, y, roi_w, roi_h = w - half_w, h - half_h, half_w, half_h
+        if roi_position == "bottom_right":
+            x, y, roi_w, roi_h = w - half_w, h - half_h, half_w, half_h
+        elif roi_position == "bottom_left":
+            x, y, roi_w, roi_h = 0, h - half_h, half_w, half_h
+        elif roi_position == "top_right":
+            x, y, roi_w, roi_h = w - half_w, 0, half_w, half_h
+        elif roi_position == "top_left":
+            x, y, roi_w, roi_h = 0, 0, half_w, half_h
+        elif roi_position == "bottom":
+            x, y, roi_w, roi_h = 0, h - half_h, w, half_h
+        elif roi_position == "top":
+            x, y, roi_w, roi_h = 0, 0, w, half_h
+        elif roi_position == "left":
+            x, y, roi_w, roi_h = 0, 0, half_w, h
+        elif roi_position == "right":
+            x, y, roi_w, roi_h = w - half_w, 0, half_w, h
+        else:
+            x, y, roi_w, roi_h = w - half_w, h - half_h, half_w, half_h
 
     roi = image[y : y + roi_h, x : x + roi_w]
 
@@ -133,6 +222,7 @@ def load_images(
     input_path: Path,
     flip_angles: list[int] | None = None,
     roi_position: str = "bottom_right",
+    adaptive_roi: bool = False,
     debug: bool = False,
 ) -> list[PreprocessedImage]:
     input_path = Path(input_path)
@@ -165,13 +255,22 @@ def load_images(
     for img_path in image_files:
         image = cv2.imread(str(img_path))
         if image is None:
-            print(f"  Warning: Не удалось загрузить или поврежден файл: {img_path.name}. Пропускается.")
+            print(
+                f"  Warning: Не удалось загрузить или поврежден файл: {img_path.name}. Пропускается."
+            )
             continue
+
+        dpi = detect_dpi(image) if adaptive_roi else None
 
         for flip_angle in flip_angles:
             flipped = flip_image(image, flip_angle) if flip_angle != 0 else image.copy()
             deskewed, skew_angle = deskew_image(flipped)
-            roi_image, roi_bbox = extract_roi(deskewed, roi_position)
+            roi_image, roi_bbox = extract_roi(
+                deskewed,
+                roi_position,
+                adaptive=adaptive_roi,
+                dpi=dpi,
+            )
 
             result = PreprocessedImage(
                 image=deskewed,
@@ -181,6 +280,8 @@ def load_images(
                 skew_angle=skew_angle,
                 flip_angle=flip_angle,
                 roi_position=roi_position,
+                dpi=dpi,
+                adaptive_roi=adaptive_roi,
             )
             results.append(result)
 
@@ -202,7 +303,8 @@ def load_images(
     print(f"Предобработано изображений: {len(results)}")
     for r in results:
         flip_info = f", flip={r.flip_angle}" if r.flip_angle != 0 else ""
+        dpi_info = f", dpi={r.dpi}" if r.dpi else ""
         path_name = r.original_path.name if r.original_path else "unknown"
-        print(f"  {path_name}: skew={r.skew_angle:.2f}{flip_info}")
+        print(f"  {path_name}: skew={r.skew_angle:.2f}{flip_info}{dpi_info}")
 
     return results

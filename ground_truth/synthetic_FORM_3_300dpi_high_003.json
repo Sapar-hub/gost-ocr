@@ -1,0 +1,15 @@
+{
+    "image_path": "ground_truth/synthetic_FORM_3_300dpi_high_003.png",
+    "stamp_bbox": [
+        245,
+        1055,
+        2185,
+        649
+    ],
+    "form_type": "Форма 3",
+    "dpi": 300,
+    "width_mm": 185,
+    "height_mm": 55,
+    "text": "ИЗМ\nЛист\n№ докум.\nПодпись\nДата",
+    "notes": "Generated: form=FORM_3, dpi=300, artifacts=high"
+}

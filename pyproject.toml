@@ -11,6 +11,8 @@ dependencies = [
     "numpy<2.0",
     "opencv-python==4.9.0.80",
     "typer>=0.23.0",
+    "Pillow>=10.0.0",
+    "EasyOCR"
 ]
 
 [project.scripts]

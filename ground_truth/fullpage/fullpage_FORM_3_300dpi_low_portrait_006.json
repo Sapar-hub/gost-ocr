@@ -1,0 +1,17 @@
+{
+    "image_path": "ground_truth/fullpage/fullpage_FORM_3_300dpi_low_portrait_006.png",
+    "stamp_bbox": [
+        245,
+        50,
+        2185,
+        649
+    ],
+    "form_type": "Форма 3",
+    "dpi": 300,
+    "orientation": "portrait",
+    "corner": "top_right",
+    "width_mm": 185,
+    "height_mm": 55,
+    "text": "ИЗМ\nЛист\n№ докум.\nПодпись\nДата",
+    "notes": "Generated: form=FORM_3, dpi=300, artifacts=low, orientation=portrait, corner=top_right, full_page=True"
+}
