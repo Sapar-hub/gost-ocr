@@ -4,7 +4,9 @@ This project is a prototype of a Python-based CLI utility for automatically loca
 
 <details>
   <summary>Spoiler</summary>
+  
   By the time this project have been created the similair (tool)[https://github.com/W24-Service-GmbH/werk24-python] in this specific domain had already been existing. But that tool is just a wrapper API client. The logic and extraction process happens in their cloud.  
+  
 </details>
 
 ## About The Project
