@@ -61,35 +61,67 @@ This project requires Python 3.12+.
     ```
     This command will install all required libraries, including `opencv-python`, `typer`, and `easyocr`.
 
-## 🚀 Usage
+## Usage
 
-The utility is run from the command line. The main command is `pipeline`.
+The utility is run from the command line using `uv run gost-ocr <COMMAND> [OPTIONS]`.
 
-### Full Processing Pipeline
+### Full Processing Pipeline (`pipeline`)
 
 This command executes all three stages (preprocess, localize, extract) and saves the results to the `output/` folder.
 
 ```bash
-gost-ocr pipeline /path/to/your/images/ --debug
+uv run gost-ocr pipeline /path/to/your/images/ --debug
 ```
 
 **Arguments and Options:**
 
 *   `PATH` (required): The path to a single image file or a directory of images.
-*   `--roi [POSITION]`: Specifies which part of the image to analyze. This significantly speeds up the search.
-    *   **Available positions:** `top`, `bottom`, `left`, `right`, `top_left`, `top_right`, `bottom_left`, `bottom_right` (default).
-*   `--flip` or `-f`: Attempt all rotations (0°, 90°, 180°, 270°). Useful for scans with landscape orientation.
-*   `--debug` or `-d`: Enable debug mode. Intermediate processing images will be saved to the `debug/` folder.
+*   `--roi [POSITION]`: Specifies which part of the image to analyze for the stamp. This significantly narrows down the search area.
+    *   **Available positions:** `top`, `bottom`, `left`, `right`, `top_left`, `top_right`, `bottom_left`, `bottom_right`, `full_page`, `corners`, `auto` (default).
+*   `--dpi [VALUE]`: Specifies the DPI of the image.
+    *   **Available values:** `auto` (default), `200`, `300`, `400`, `600`. The `auto` option attempts to detect the DPI automatically.
+*   `--filter-by-size/--no-filter-by-size`: Controls whether detected stamps are filtered by pre-configured size thresholds.
+    *   **Default:** `False` (stamps are NOT filtered by size by default).
+*   `--flip` or `-f`: Attempt all rotations (0°, 90°, 180°, 270°) during preprocessing. Useful for scans with varying orientations.
+*   `--debug` or `-d`: Enable debug mode. Intermediate processing images (preprocessing, localization) will be saved to the `debug/` folder. In this mode, extracted text with confidence will also be saved as `.txt` files in `debug/extraction/`.
+
+### Localization Only (`localize`)
+
+This command performs preprocessing and stamp localization without text extraction. It's useful for testing and tuning the localization stage.
+
+```bash
+uv run gost-ocr localize /path/to/your/images/ --debug
+```
+**Arguments and Options:** Same as `pipeline` command.
+
+### Evaluation (`evaluate`)
+
+This command assesses the quality of the OCR pipeline against ground truth data.
+
+**Note:** Before running `evaluate`, you must execute the `pipeline` command on your ground truth images to generate the necessary OCR output files.
+
+```bash
+uv run gost-ocr evaluate <GROUND_TRUTH_DIR> --output-dir <OUTPUT_DIR>
+```
+
+**Arguments and Options:**
+
+*   `GROUND_TRUTH_DIR` (required): Path to the directory containing ground truth JSON files.
+*   `--output-dir` or `-o`: Path to the directory containing OCR results (JSON files).
+*   `--iou-threshold`: Minimum IoU for successful localization (default: 0.5).
+*   `--cer-threshold`: Maximum CER for successful text recognition (default: 0.1).
+*   `--wer-threshold`: Maximum WER for successful word recognition (default: 0.2).
+*   `--save-report` or `-s`: Save the evaluation report to a JSON file.
 
 ### Example
 
 Process all images in the `samples/` directory, searching for the stamp in the bottom-right corner, and save debug files:
 
 ```bash
-gost-ocr pipeline samples/ --roi bottom_right --debug
+uv run gost-ocr pipeline samples/ --roi bottom_right --debug
 ```
 
-## 📂 Project Structure
+## Project Structure
 
 *   `src/gost_ocr/cli.py`: Defines the command-line interface using `Typer`.
 *   `src/gost_ocr/preprocessing.py`: Module for image preprocessing (loading, deskewing, ROI cropping).
@@ -98,14 +130,14 @@ gost-ocr pipeline samples/ --roi bottom_right --debug
 *   `src/gost_ocr/config.py`: Contains project constants and paths.
 *   `pyproject.toml`: Project description and dependencies.
 
-## 📄 Output Format
+## Output Format
 
 *   **`output/`**: This directory will contain the `.json` files with the recognition results for each processed image.
-*   **`debug/`**: If the `--debug` option is enabled, this directory will contain subfolders with intermediate images:
+*   **`debug/`**: If the `--debug` option is enabled, this directory will contain subfolders with intermediate images and text output:
     *   `preprocessing/`: Results of the preprocessing step.
     *   `preprocessing/roi/`: The cropped Regions of Interest (ROI).
     *   `localization/`: Images with bounding boxes of found stamp candidates.
-    *   `extraction/`: The cropped stamp images that were sent for OCR.
+    *   `extraction/`: Contains `.txt` files with extracted text and confidence scores for the most confident stamp per image. Cropped stamp images are no longer saved here.
 
 ### Example JSON Output (`<filename>_output.json`)
 
@@ -130,8 +162,6 @@ gost-ocr pipeline samples/ --roi bottom_right --debug
             ]
         },
         {
-            "text": "Лист",
-            "confidence": 0.998,
             "box": [
                 [96, 15],
                 [175, 15],
@@ -150,9 +180,32 @@ gost-ocr pipeline samples/ --roi bottom_right --debug
             ]
         }
     ],
-    "full_text": "ИЗМ\nЛист\nМГТ-2024-ПЗ..."
+    "full_text": "ИЗМ Лист МГТ-2024-ПЗ..."
 }
 ```
+
+## Evaluation Results
+
+The system was evaluated on a dataset of 25 synthetic images with varying DPI and GOST stamp forms (FORM_3, FORM_4, FORM_5).
+
+*   **Dataset (Ground Truth):** `src/gost_ocr/tests/ground_truth/`
+*   **Evaluation Output:** `output/`
+
+### Aggregate Metrics
+
+| Metric                           | Value       |
+| :------------------------------- | :---------- |
+| Images processed                 | 25          |
+| Localization success (IoU ≥ 0.5) | 23/25 (92%) |
+| Text recognition success         | 0/25 (0%)   |
+| Mean IoU                         | 0.86        |
+| Median IoU                       | 0.99        |
+| Mean CER                         | 0.67        |
+| Mean WER                         | 1.47        |
+
+### Interpretation
+
+The evaluation indicates that the system is highly effective at localizing GOST stamps, achieving a 92% success rate and high IoU values. This robust localization forms a strong foundation for the overall automation pipeline. However, the current text recognition component exhibits low accuracy (0% success rate), with high Character Error Rate (CER) and Word Error Rate (WER). This suggests that while stamps are correctly identified, the extracted text often contains errors, necessitating human verification for reliable metadata extraction. Further improvements are required for the OCR stage to achieve fully autonomous operation.
 
 ## Usage preview
 

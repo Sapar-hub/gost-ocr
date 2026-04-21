@@ -7,11 +7,12 @@ import numpy as np
 
 from .config import (
     DEBUG_LOCALIZATION_DIR,
-    FORM_3_5_ASPECT_RATIO,
+    FORM_3_ASPECT_RATIO,
     MIN_STAMP_WIDTH_PX,
     MAX_STAMP_WIDTH_PX,
     MIN_STAMP_HEIGHT_PX,
     MIN_STAMP_AREA_PX,
+    get_expected_aspect_ratio,
 )
 from .preprocessing import PreprocessedImage, denoise_image, enhance_contrast
 
@@ -47,7 +48,10 @@ def get_depth(i: int, hierarchy: np.ndarray, memo: dict | None = None) -> int:
 
 
 def check_gost_stamp_ratio(
-    contour: np.ndarray, tolerance: float = 0.15, filter_by_size: bool = False
+    contour: np.ndarray,
+    tolerance: float = 0.15,
+    filter_by_size: bool = False,
+    image_path: str | None = None,
 ) -> tuple[bool, float, float]:
     x, y, w, h = cv2.boundingRect(contour)
 
@@ -67,7 +71,9 @@ def check_gost_stamp_ratio(
             return False, 0.0, 0.0
 
     aspect_ratio = w / h
-    expected_ratio = FORM_3_5_ASPECT_RATIO
+
+    detected_ratio = get_expected_aspect_ratio(image_path) if image_path else None
+    expected_ratio = detected_ratio if detected_ratio else FORM_3_ASPECT_RATIO
 
     ratio_diff = abs(aspect_ratio - expected_ratio) / expected_ratio
 
@@ -79,7 +85,7 @@ def check_gost_stamp_ratio(
 
 
 def _find_with_edge_detection(
-    roi: np.ndarray, filter_by_size: bool = False
+    roi: np.ndarray, filter_by_size: bool = False, image_path: str | None = None
 ) -> list[StampCandidate]:
     """Fallback: find stamp using edge detection and contour analysis."""
     gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY) if len(roi.shape) == 3 else roi
@@ -137,6 +143,7 @@ def _find_with_edge_detection(
                                 ]
                             ),
                             filter_by_size=filter_by_size,
+                            image_path=image_path,
                         )
 
                         candidates.append(
@@ -160,6 +167,7 @@ def find_stamp_contours(
     use_dynamic_threshold: bool = True,
     dpi: int | None = None,
     filter_by_size: bool = False,
+    image_path: str | None = None,
 ) -> list[StampCandidate]:
     gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY) if len(roi.shape) == 3 else roi
 
@@ -245,7 +253,7 @@ def find_stamp_contours(
                     )
 
                     is_valid, aspect, confidence = check_gost_stamp_ratio(
-                        union_contour, filter_by_size=filter_by_size
+                        union_contour, filter_by_size=filter_by_size, image_path=image_path
                     )
 
                     candidate = StampCandidate(
@@ -262,14 +270,14 @@ def find_stamp_contours(
     # Dynamic threshold mode: always run, collect sizes for histogram analysis
     if use_dynamic_threshold:
         dynamic_candidates = _find_with_dynamic_threshold(
-            roi, contours, hierarchy, memo
+            roi, contours, hierarchy, memo, image_path=image_path
         )
         candidates = _merge_candidates(candidates, dynamic_candidates)
 
     # Fallback: if no candidates found, try edge detection
     gost_compliant = [c for c in candidates if c.is_gost_compliant]
     if not gost_compliant:
-        edge_candidates = _find_with_edge_detection(roi, filter_by_size)
+        edge_candidates = _find_with_edge_detection(roi, filter_by_size, image_path=image_path)
         if edge_candidates:
             candidates = _merge_candidates(candidates, edge_candidates)
 
@@ -290,6 +298,7 @@ def _find_with_dynamic_threshold(
     contours: list,
     hierarchy: np.ndarray,
     memo: dict,
+    image_path: str | None = None,
 ) -> list[StampCandidate]:
     """Find stamp using dynamic threshold based on size histogram."""
 
@@ -382,7 +391,14 @@ def _find_with_dynamic_threshold(
                         and union_h > MIN_STAMP_HEIGHT_PX * 0.5
                     ):
                         aspect = union_w / union_h if union_h > 0 else 0
-                        expected_ratio = FORM_3_5_ASPECT_RATIO
+                        detected_ratio = (
+                            get_expected_aspect_ratio(image_path)
+                            if image_path
+                            else None
+                        )
+                        expected_ratio = (
+                            detected_ratio if detected_ratio else FORM_3_ASPECT_RATIO
+                        )
                         ratio_diff = abs(aspect - expected_ratio) / expected_ratio
                         confidence = max(0.0, 1.0 - (ratio_diff / 0.30))
 
@@ -436,9 +452,10 @@ def localize_stamp(
     roi_x, roi_y, _, _ = preprocessed.roi_bbox
     dpi = preprocessed.dpi
     filter_by_size = preprocessed.filter_by_size
+    image_path = str(preprocessed.original_path) if preprocessed.original_path else None
 
     candidates = find_stamp_contours(
-        roi, draw_all, dpi=dpi, filter_by_size=filter_by_size
+        roi, draw_all, dpi=dpi, filter_by_size=filter_by_size, image_path=image_path
     )
 
     if debug:

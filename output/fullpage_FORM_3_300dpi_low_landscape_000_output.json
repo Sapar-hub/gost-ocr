@@ -1,5 +1,5 @@
 {
-    "source_image_path": "ground_truth/fullpage/fullpage_FORM_3_300dpi_low_landscape_000.png",
+    "source_image_path": "src/gost_ocr/tests/ground_truth/fullpage_FORM_3_300dpi_low_landscape_000.png",
     "stamp_bbox": [
         54,
         46,
@@ -294,5 +294,5 @@
             ]
         }
     ],
-    "full_text": "ИЗМ\\n2\\n1 3\\n2\\n2\\n3\\nАист\\n~! докум-\\nПодпись\\nА\\nДата\\nВ\\nВ"
+    "full_text": "ИЗМ 2 1 3 2 2 3 Аист ~! докум- Подпись А Дата В В"
 }

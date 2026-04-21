@@ -50,6 +50,56 @@ def detect_dpi(image: np.ndarray) -> int:
     return max(150, min(600, estimated_dpi))
 
 
+def detect_roi_type(image_path: str | Path) -> str:
+    """Detect ROI type from image path: full_page if path contains 'fullpage' or width > 2000px."""
+    from pathlib import Path
+
+    path_str = str(image_path).lower()
+
+    if "fullpage" in path_str or "full_page" in path_str:
+        return "full_page"
+
+    path = Path(image_path) if not isinstance(image_path, Path) else image_path
+
+    if not path.exists():
+        return "bottom_right"
+
+    try:
+        if path.is_dir():
+            for f in path.iterdir():
+                if f.suffix.lower() in [".png", ".jpg", ".jpeg"]:
+                    img = cv2.imread(str(f))
+                    if img is not None:
+                        h, w = img.shape[:2]
+                        if w > 2000:
+                            return "full_page"
+                        break
+        else:
+            img = cv2.imread(str(path))
+            if img is not None:
+                h, w = img.shape[:2]
+                if w > 2000:
+                    return "full_page"
+    except Exception:
+        pass
+
+    return "bottom_right"
+
+
+def normalize_dpi(dpi_value: str | int | None) -> int | None:
+    """Normalize DPI value: return int or None."""
+    if dpi_value is None:
+        return None
+    if isinstance(dpi_value, int):
+        return dpi_value
+    if isinstance(dpi_value, str):
+        if dpi_value.lower() == "auto":
+            return None
+        if dpi_value.isdigit():
+            return int(dpi_value)
+    return None
+
+
 def calculate_roi_for_dpi(
     image_shape, dpi, roi_position: str = "bottom_right"
 ) -> tuple[int, int, int, int]:
@@ -86,7 +136,8 @@ class PreprocessedImage:
     flip_angle: int
     roi_position: str
     dpi: int | None = None
-    dpi_roi: bool = False
+    dpi_roi: int | None = None
+    filter_by_size: bool = True
 
 
 def rotate_image(image: np.ndarray, angle: float) -> np.ndarray:
@@ -222,7 +273,8 @@ def load_images(
     input_path: Path,
     flip_angles: list[int] | None = None,
     roi_position: str = "bottom_right",
-    dpi_roi: bool = False,
+    dpi_roi: int | None = None,
+    filter_by_size: bool = True,
     debug: bool = False,
 ) -> list[PreprocessedImage]:
     input_path = Path(input_path)
@@ -260,7 +312,12 @@ def load_images(
             )
             continue
 
-        dpi = detect_dpi(image) if dpi_roi else None
+        if dpi_roi is not None:
+            dpi = dpi_roi if isinstance(dpi_roi, int) else detect_dpi(image)
+            use_dpi_roi = True
+        else:
+            dpi = None
+            use_dpi_roi = False
 
         for flip_angle in flip_angles:
             flipped = flip_image(image, flip_angle) if flip_angle != 0 else image.copy()
@@ -268,7 +325,7 @@ def load_images(
             roi_image, roi_bbox = extract_roi(
                 deskewed,
                 roi_position,
-                adaptive=dpi_roi,
+                adaptive=use_dpi_roi,
                 dpi=dpi,
             )
 
@@ -281,7 +338,8 @@ def load_images(
                 flip_angle=flip_angle,
                 roi_position=roi_position,
                 dpi=dpi,
-                dpi_roi=dpi_roi,
+                dpi_roi=dpi,
+                filter_by_size=filter_by_size,
             )
             results.append(result)
 

@@ -80,18 +80,7 @@ def extract_text(
         )
         return None
 
-    if debug:
-        DEBUG_EXTRACTION_DIR.mkdir(parents=True, exist_ok=True)
-        name = localization_result.preprocessed.original_path.stem
-        suffix = (
-            f"_flip{localization_result.preprocessed.flip_angle}"
-            if localization_result.preprocessed.flip_angle != 0
-            else ""
-        )
-        cv2.imwrite(
-            str(DEBUG_EXTRACTION_DIR / f"{name}{suffix}_stamp.png"),
-            stamp_image,
-        )
+
 
     ocr = get_ocr_instance()
     # EasyOCR's result is a list of (bbox, text, confidence)
@@ -112,5 +101,5 @@ def extract_text(
         source_image_path=str(localization_result.preprocessed.original_path),
         stamp_bbox=stamp_bbox,
         text_blocks=text_blocks,
-        full_text="\\n".join(full_text_lines),
+        full_text=" ".join(full_text_lines),
     )

@@ -7,17 +7,43 @@ from pathlib import Path
 import typer
 from typing import Annotated
 
-from .config import DEFAULT_IMAGES_PATH, OUTPUT_DIR
+from .config import DEFAULT_IMAGES_PATH, OUTPUT_DIR, DEBUG_EXTRACTION_DIR
 from .evaluation import evaluate_batch, print_evaluation_report, save_evaluation_report
 from .extraction import extract_text
 from .localization import localize_images
-from .preprocessing import load_images
+from .preprocessing import load_images, normalize_dpi, detect_roi_type
 
 app = typer.Typer(help="GOST OCR - извлечение метаданных из чертежей")
 
 
+@app.callback()
+def common_options(
+    ctx: typer.Context,
+    recursive: Annotated[
+        bool, typer.Option("-r", "--recursive", help="Рекурсивно обрабатывать вложенные папки")
+    ] = False,
+    debug: Annotated[
+        bool, typer.Option("-d", "--debug", help="Сохранять промежуточные результаты")
+    ] = False,
+):
+    ctx.obj = {"recursive": recursive, "debug": debug}
+
+
+def find_images_recursive(path: Path) -> list[Path]:
+    """Find all image files recursively if enabled."""
+    images = []
+    if path.is_file():
+        return [path] if path.suffix.lower() in [".png", ".jpg", ".jpeg"] else []
+
+    for p in path.rglob("*"):
+        if p.is_file() and p.suffix.lower() in [".png", ".jpg", ".jpeg"]:
+            images.append(p)
+    return sorted(images)
+
+
 @app.command()
 def preprocess(
+    ctx: typer.Context,
     path: Annotated[
         Path, typer.Argument(help="Путь к файлу или папке с изображениями (png/jpg)")
     ] = DEFAULT_IMAGES_PATH,
@@ -30,27 +56,37 @@ def preprocess(
             "--roi",
             help="Позиция ROI: top, bottom, left, right, top_left, top_right, bottom_left, bottom_right, full_page, corners (все углы)",
         ),
-    ] = "bottom_right",
-    dpi_roi: Annotated[
-        bool,
+    ] = "auto",
+    dpi: Annotated[
+        str | None,
         typer.Option(
-            "--dpi-roi/--no-dpi-roi",
-            help="DPI-based ROI calculation (по умолчанию выкл)",
+            "--dpi",
+            help="DPI: auto, 200, 300, 400, 600",
         ),
-    ] = False,
+    ] = None,
     filter_by_size: Annotated[
         bool,
         typer.Option(
             "--filter-by-size/--no-filter-by-size",
-            help="Filter stamps by size config (по умолчанию вкл)",
+            help="Filter stamps by size config (по умолчанию выкл)",
         ),
-    ] = True,
-    debug: Annotated[
-        bool, typer.Option("--debug", "-d", help="Сохранять промежуточные результаты")
     ] = False,
 ):
     """Предобработка изображений: deskew + flip + ROI"""
+    debug = ctx.obj.get("debug", False) if ctx.obj else False
+    recursive = ctx.obj.get("recursive", False) if ctx.obj else False
+
+    if recursive:
+        images = find_images_recursive(path)
+        print(f"Рекурсивно найдено изображений: {len(images)}")
+
     flip_angles = [0, 90, 180, 270] if flip else [0]
+
+    if roi_position == "auto":
+        roi_position = detect_roi_type(path)
+        print(f"Detected ROI position: {roi_position}")
+
+    dpi_value = normalize_dpi(dpi)
 
     if roi_position == "corners":
         all_results = []
@@ -60,7 +96,7 @@ def preprocess(
                 path,
                 flip_angles=flip_angles,
                 roi_position=corner,
-                dpi_roi=dpi_roi,
+                dpi_roi=dpi_value,
                 debug=debug,
             )
             all_results.extend(results)
@@ -70,7 +106,7 @@ def preprocess(
             path,
             flip_angles=flip_angles,
             roi_position=roi_position,
-            dpi_roi=dpi_roi,
+            dpi_roi=dpi_value,
             debug=debug,
         )
         return results
@@ -81,6 +117,7 @@ def preprocess(
     help="Полный конвейер: предобработка, локализация и извлечение текста.",
 )
 def run_pipeline(
+    ctx: typer.Context,
     path: Annotated[
         Path, typer.Argument(help="Путь к файлу или папке с изображениями (png/jpg)")
     ] = DEFAULT_IMAGES_PATH,
@@ -93,23 +130,20 @@ def run_pipeline(
             "--roi",
             help="Позиция ROI: top, bottom, left, right, top_left, top_right, bottom_left, bottom_right, full_page, corners (все углы)",
         ),
-    ] = "bottom_right",
-    dpi_roi: Annotated[
-        bool,
+    ] = "auto",
+    dpi: Annotated[
+        str | None,
         typer.Option(
-            "--dpi-roi/--no-dpi-roi",
-            help="DPI-based ROI calculation (по умолчанию выкл)",
+            "--dpi",
+            help="DPI: auto, 200, 300, 400, 600",
         ),
-    ] = False,
+    ] = None,
     filter_by_size: Annotated[
         bool,
         typer.Option(
             "--filter-by-size/--no-filter-by-size",
-            help="Filter stamps by size config (по умолчанию вкл)",
+            help="Filter stamps by size config (по умолчанию выкл)",
         ),
-    ] = True,
-    debug: Annotated[
-        bool, typer.Option("--debug", "-d", help="Сохранять промежуточные результаты")
     ] = False,
 ):
     """
@@ -119,8 +153,21 @@ def run_pipeline(
     3. Извлечение текста (OCR)
     Результаты сохраняются в папку 'output'.
     """
+    debug = ctx.obj.get("debug", False) if ctx.obj else False
+    recursive = ctx.obj.get("recursive", False) if ctx.obj else False
+
+    if recursive:
+        images = find_images_recursive(path)
+        print(f"Рекурсивно найдено изображений: {len(images)}")
+
     flip_angles = [0, 90, 180, 270] if flip else [0]
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    if roi_position == "auto":
+        roi_position = detect_roi_type(path)
+        print(f"Detected ROI position: {roi_position}")
+
+    dpi_value = normalize_dpi(dpi)
 
     # Handle corners mode
     if roi_position == "corners":
@@ -134,8 +181,9 @@ def run_pipeline(
                 path,
                 flip_angles=flip_angles,
                 roi_position=corner,
-                dpi_roi=dpi_roi,
+                dpi_roi=dpi_value,
                 debug=debug,
+                filter_by_size=filter_by_size,
             )
             all_preprocessed.extend(preprocessed_images)
 
@@ -143,7 +191,6 @@ def run_pipeline(
                 preprocessed_images,
                 draw_all=False,
                 debug=debug,
-                filter_by_size=filter_by_size,
             )
             all_localization.extend(loc_results)
 
@@ -154,14 +201,14 @@ def run_pipeline(
             path,
             flip_angles=flip_angles,
             roi_position=roi_position,
-            dpi_roi=dpi_roi,
+            dpi_roi=dpi_value,
             debug=debug,
+            filter_by_size=filter_by_size,
         )
         localization_results = localize_images(
             preprocessed_images,
             draw_all=False,
             debug=debug,
-            filter_by_size=filter_by_size,
         )
 
     found_count = sum(1 for r in localization_results if r.stamp is not None)
@@ -169,26 +216,48 @@ def run_pipeline(
 
     print("\n=== ЭТАП 3: Извлечение текста ===")
     extraction_results = []
-    processed_images = set()
-
+    
+    # Group localization results by original image path to find the most confident stamp per image
+    grouped_localization_results: dict[Path, LocalizationResult] = {}
     for loc_res in localization_results:
         if loc_res.stamp:
-            img_name = loc_res.preprocessed.original_path.name
-            if img_name in processed_images:
-                continue
-            processed_images.add(img_name)
+            original_path = loc_res.preprocessed.original_path
+            if original_path not in grouped_localization_results or \
+               loc_res.stamp.confidence > grouped_localization_results[original_path].stamp.confidence:
+                grouped_localization_results[original_path] = loc_res
 
-            print(f"  Распознавание текста для: {img_name}...")
-            ext_res = extract_text(loc_res, debug=debug)
-            if ext_res:
-                extraction_results.append(ext_res)
-                output_filename = (
-                    f"{loc_res.preprocessed.original_path.stem}_output.json"
+    for original_path, loc_res in grouped_localization_results.items():
+        img_name = original_path.name
+        print(f"  Распознавание текста для: {img_name}...")
+        ext_res = extract_text(loc_res, debug=debug)
+        if ext_res:
+            extraction_results.append(ext_res)
+            
+            # Existing JSON output to OUTPUT_DIR
+            output_filename = (
+                f"{loc_res.preprocessed.original_path.stem}_output.json"
+            )
+            output_path = OUTPUT_DIR / output_filename
+            with open(output_path, "w", encoding="utf-8") as f:
+                json.dump(asdict(ext_res), f, ensure_ascii=False, indent=4)
+            print(f"    -> Результат сохранен в: {output_path}")
+
+            # New TXT output to DEBUG_EXTRACTION_DIR if debug is True
+            if debug:
+                DEBUG_EXTRACTION_DIR.mkdir(parents=True, exist_ok=True)
+                txt_output_filename = (
+                    f"{loc_res.preprocessed.original_path.stem}_extracted_text.txt"
                 )
-                output_path = OUTPUT_DIR / output_filename
-                with open(output_path, "w", encoding="utf-8") as f:
-                    json.dump(asdict(ext_res), f, ensure_ascii=False, indent=4)
-                print(f"    -> Результат сохранен в: {output_path}")
+                txt_output_path = DEBUG_EXTRACTION_DIR / txt_output_filename
+
+                with open(txt_output_path, "w", encoding="utf-8") as f:
+                    f.write(f"Full Text:\n{ext_res.full_text}\n\n")
+                    f.write("Text Blocks (text, confidence):\n")
+                    for block in ext_res.text_blocks:
+                        f.write(
+                            f"  - Text: '{block.text}', Confidence: {block.confidence:.2f}\n"
+                        )
+                print(f"    -> Debug text saved to: {txt_output_path}")
 
     print(f"\n=== ИТОГО: извлечен текст из {len(extraction_results)} штампов ===")
     return extraction_results
@@ -196,6 +265,7 @@ def run_pipeline(
 
 @app.command(name="localize", help="Локализация штампа (без OCR)")
 def localize(
+    ctx: typer.Context,
     path: Annotated[
         Path, typer.Argument(help="Путь к файлу или папке с изображениями (png/jpg)")
     ] = DEFAULT_IMAGES_PATH,
@@ -208,30 +278,40 @@ def localize(
             "--roi",
             help="Позиция ROI: top, bottom, left, right, top_left, top_right, bottom_left, bottom_right, full_page, corners (все углы)",
         ),
-    ] = "bottom_right",
-    dpi_roi: Annotated[
-        bool,
+    ] = "auto",
+    dpi: Annotated[
+        str | None,
         typer.Option(
-            "--dpi-roi/--no-dpi-roi",
-            help="DPI-based ROI calculation (по умолчанию выкл)",
+            "--dpi",
+            help="DPI: auto, 200, 300, 400, 600",
         ),
-    ] = False,
+    ] = None,
     filter_by_size: Annotated[
         bool,
         typer.Option(
             "--filter-by-size/--no-filter-by-size",
-            help="Filter stamps by size config (по умолчанию вкл)",
+            help="Filter stamps by size config (по умолчанию выкл)",
         ),
-    ] = True,
-    debug: Annotated[
-        bool, typer.Option("--debug", "-d", help="Сохранять промежуточные результаты")
     ] = False,
 ):
     """
     Локализация штампа: предобработка + поиск контуров.
     Не запускает OCR - полезно для тестирования локализации.
     """
+    debug = ctx.obj.get("debug", False) if ctx.obj else False
+    recursive = ctx.obj.get("recursive", False) if ctx.obj else False
+
+    if recursive:
+        images = find_images_recursive(path)
+        print(f"Рекурсивно найдено изображений: {len(images)}")
+
     flip_angles = [0, 90, 180, 270] if flip else [0]
+
+    if roi_position == "auto":
+        roi_position = detect_roi_type(path)
+        print(f"Detected ROI position: {roi_position}")
+
+    dpi_value = normalize_dpi(dpi)
 
     if roi_position == "corners":
         corner_positions = ["bottom_right", "bottom_left", "top_right", "top_left"]
@@ -244,8 +324,9 @@ def localize(
                 path,
                 flip_angles=flip_angles,
                 roi_position=corner,
-                dpi_roi=dpi_roi,
+                dpi_roi=dpi_value,
                 debug=debug,
+                filter_by_size=filter_by_size,
             )
             all_preprocessed.extend(preprocessed_images)
 
@@ -253,7 +334,6 @@ def localize(
                 preprocessed_images,
                 draw_all=False,
                 debug=debug,
-                filter_by_size=filter_by_size,
             )
             all_localization.extend(loc_results)
 
@@ -263,14 +343,14 @@ def localize(
             path,
             flip_angles=flip_angles,
             roi_position=roi_position,
-            dpi_roi=dpi_roi,
+            dpi_roi=dpi_value,
             debug=debug,
+            filter_by_size=filter_by_size,
         )
         localization_results = localize_images(
             preprocessed_images,
             draw_all=False,
             debug=debug,
-            filter_by_size=filter_by_size,
         )
 
     found_count = sum(1 for r in localization_results if r.stamp is not None)
