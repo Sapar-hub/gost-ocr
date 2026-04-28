@@ -8,9 +8,10 @@ import typer
 from typing import Annotated
 
 from .config import DEFAULT_IMAGES_PATH, OUTPUT_DIR, DEBUG_EXTRACTION_DIR
+from .detection import get_detector, DetectorType, get_detector_info
 from .evaluation import evaluate_batch, print_evaluation_report, save_evaluation_report
 from .extraction import extract_text
-from .localization import localize_images
+from .localization import localize_images, LocalizationResult
 from .preprocessing import load_images, normalize_dpi, detect_roi_type
 
 app = typer.Typer(help="GOST OCR - извлечение метаданных из чертежей")
@@ -25,8 +26,15 @@ def common_options(
     debug: Annotated[
         bool, typer.Option("-d", "--debug", help="Сохранять промежуточные результаты")
     ] = False,
+    detector: Annotated[
+        DetectorType,
+        typer.Option(
+            "--detector",
+            help="Метод детекции: auto (YOLO с fallback), yolo, opencv",
+        ),
+    ] = "auto",
 ):
-    ctx.obj = {"recursive": recursive, "debug": debug}
+    ctx.obj = {"recursive": recursive, "debug": debug, "detector": detector}
 
 
 def find_images_recursive(path: Path) -> list[Path]:
@@ -300,6 +308,10 @@ def localize(
     """
     debug = ctx.obj.get("debug", False) if ctx.obj else False
     recursive = ctx.obj.get("recursive", False) if ctx.obj else False
+    detector_type = ctx.obj.get("detector", "auto") if ctx.obj else "auto"
+
+    info = get_detector_info()
+    print(f"Detector: {detector_type} (YOLO: {'✓' if info['yolo_available'] else '✗'}, OpenCV: ✓)")
 
     if recursive:
         images = find_images_recursive(path)
@@ -356,6 +368,63 @@ def localize(
     found_count = sum(1 for r in localization_results if r.stamp is not None)
     print(f"\n=== ИТОГО: найдено штампов {found_count}/{len(localization_results)} ===")
     return localization_results
+
+
+@app.command(name="detect", help="YOLO detection (standalone, без OCR)")
+def detect(
+    ctx: typer.Context,
+    path: Annotated[
+        Path, typer.Argument(help="Путь к файлу или папке с изображениями (png/jpg)")
+    ] = DEFAULT_IMAGES_PATH,
+    output_dir: Annotated[
+        Path, typer.Option("--output-dir", "-o", help="Директория для результатов")
+    ] = OUTPUT_DIR,
+):
+    """
+    Детекция штампов с помощью YOLO.
+    Сохраняет результаты в JSON файлы.
+    """
+    from .detection import get_detector, YoloDetector
+    import cv2
+    import json
+
+    detector = get_detector("yolo")
+    print(f"Using: {detector.get_name()}")
+
+    path = Path(path)
+    image_files = []
+    if path.is_file():
+        image_files = [path] if path.suffix.lower() in [".png", ".jpg", ".jpeg"] else []
+    else:
+        image_files = [f for f in path.iterdir() if f.suffix.lower() in [".png", ".jpg", ".jpeg"]]
+
+    print(f"Found images: {len(image_files)}")
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    results = []
+    for img_path in image_files:
+        img = cv2.imread(str(img_path))
+        if img is None:
+            print(f"  Warning: Cannot read {img_path.name}")
+            continue
+
+        det_result = detector.detect(img)
+        if det_result:
+            output_file = output_dir / f"{img_path.stem}_yolo.json"
+            with open(output_file, "w") as f:
+                json.dump({
+                    "source": str(img_path),
+                    "bbox": det_result.bbox,
+                    "confidence": det_result.confidence,
+                    "method": det_result.method,
+                }, f, indent=2)
+            print(f"  {img_path.name}: bbox={det_result.bbox}, conf={det_result.confidence:.3f}")
+            results.append(det_result)
+        else:
+            print(f"  {img_path.name}: not detected")
+
+    print(f"\n=== Detected: {len(results)}/{len(image_files)} ===")
+    return results
 
 
 @app.command(name="evaluate", help="Оценка качества по ground truth")

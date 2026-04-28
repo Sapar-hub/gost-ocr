@@ -1,5 +1,19 @@
 __pycache__
 .env
 .venv
-debug/
+.mypy_cache/
+.ruff_cache/
 
+# Generated artifacts
+debug/
+output/
+comparison_results.json
+
+# YOLO artifacts
+runs/
+*.pt
+!src/gost_ocr/models/yolo/best.pt
+
+# Python
+*.pyc
+*.egg-info/
