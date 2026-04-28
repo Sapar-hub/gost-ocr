@@ -1,0 +1,17 @@
+{
+    "image_path": "ground_truth/fullpage/fullpage_FORM_5_300dpi_high_landscape_001.png",
+    "stamp_bbox": [
+        50,
+        1781,
+        3507,
+        649
+    ],
+    "form_type": "Форма 5",
+    "dpi": 300,
+    "orientation": "landscape",
+    "corner": "bottom_left",
+    "width_mm": 297,
+    "height_mm": 55,
+    "text": "ИЗМ\nЛист\n№ докум.\nПодпись\nДата",
+    "notes": "Generated: form=FORM_5, dpi=300, artifacts=high, orientation=landscape, corner=bottom_left, full_page=True"
+}
