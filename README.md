@@ -1,26 +1,27 @@
 # GOST-OCR: Automatic Metadata Extraction from Technical Drawing Stamps
 
-This project is a prototype of a Python-based CLI utility for automatically locating and recognizing text within the title block (known as "stamp" or "osnovnaya nadpis") of scanned technical drawings that conform to GOST standards.
+This project is a Python-based CLI utility for automatically locating and recognizing text within the title block (known as "stamp" or "osnovnaya nadpis") of scanned technical drawings that conform to GOST standards.
 
 <details>
-  <summary>Spoiler</summary>
+<summary>Spoiler</summary>
   
-  By the time this project have been created the similair [tool](https://github.com/W24-Service-GmbH/werk24-python) in this specific domain had already been existing. But that tool is just a wrapper API client. The logic and extraction process happens in their cloud.  
-  
+By the time this project have been created the similair [tool](https://github.com/W24-Service-GmbH/werk24-python) in this specific domain had already been existing. But that tool is just a wrapper API client. The logic and extraction process happens in their cloud.  
+
 </details>
 
 ## About The Project
 
 In design institutes and archives, the manual processing of digitized drawings is a significant challenge. After scanning, documents are saved with technical filenames, and to catalog them, employees must manually open each file, find the title block, and re-type the metadata (such as project code, sheet number, etc.) into registers. This process is slow, monotonous, and prone to human error.
 
-**GOST-OCR** aims to automate this workflow by providing an image processing pipeline.
+**GOST-OCR** aims to automate this workflow by providing an image processing pipeline with two detection methods: OpenCV (traditional) and YOLO (machine learning).
 
 ### What It Does (Features)
 
 *   **Implements a three-stage pipeline:**
     1.  **Preprocessing:** Corrects image skew and allows for selecting a Region of Interest (ROI) to narrow down the search area.
-    2.  **Stamp Localization:** Uses computer vision techniques (contour hierarchy analysis in OpenCV) to locate the title block's frame based on its structural properties.
+    2.  **Stamp Localization:** Uses computer vision (OpenCV contour analysis OR YOLO object detection) to locate the title block.
     3.  **Text Extraction:** Recognizes all text within the located stamp area using the `EasyOCR` engine.
+*   **Dual Detection Methods:** Supports both OpenCV (contour-based) and YOLO (deep learning) detection.
 *   **Processes Images in Batches:** Works with single image files (`.png`, `.jpg`, `.jpeg`) or an entire folder of images.
 *   **Provides Structured Output:** Saves all recognized text blocks, their coordinates, and confidence scores into a structured JSON file for each processed image.
 *   **Includes a Debug Mode:** Allows saving intermediate images from each stage for visual inspection and fine-tuning.
@@ -59,155 +60,135 @@ This project requires Python 3.12+.
     pip install uv
     uv pip sync pyproject.toml
     ```
-    This command will install all required libraries, including `opencv-python`, `typer`, and `easyocr`.
+    This command will install all required libraries, including `opencv-python`, `typer`, `easyocr`, and `ultralytics`.
+
 
 ## Usage
 
 The utility is run from the command line using `uv run gost-ocr <COMMAND> [OPTIONS]`.
+
+### Detection Methods
+
+Use `--detector` to choose the detection method:
+- `auto` (default): Try YOLO, fallback to OpenCV
+- `yolo`: Use YOLO detection only
+- `opencv`: Use OpenCV contour detection
 
 ### Full Processing Pipeline (`pipeline`)
 
 This command executes all three stages (preprocess, localize, extract) and saves the results to the `output/` folder.
 
 ```bash
-uv run gost-ocr pipeline /path/to/your/images/ --debug
+uv run gost-ocr pipeline /path/to/your/images/ --detector=auto --debug
 ```
 
-**Arguments and Options:**
+### YOLO Detection Only (`detect`)
 
-*   `PATH` (required): The path to a single image file or a directory of images.
-*   `--roi [POSITION]`: Specifies which part of the image to analyze for the stamp. This significantly narrows down the search area.
-    *   **Available positions:** `top`, `bottom`, `left`, `right`, `top_left`, `top_right`, `bottom_left`, `bottom_right`, `full_page`, `corners`, `auto` (default).
-*   `--dpi [VALUE]`: Specifies the DPI of the image.
-    *   **Available values:** `auto` (default), `200`, `300`, `400`, `600`. The `auto` option attempts to detect the DPI automatically.
-*   `--filter-by-size/--no-filter-by-size`: Controls whether detected stamps are filtered by pre-configured size thresholds.
-    *   **Default:** `False` (stamps are NOT filtered by size by default).
-*   `--flip` or `-f`: Attempt all rotations (0°, 90°, 180°, 270°) during preprocessing. Useful for scans with varying orientations.
-*   `--debug` or `-d`: Enable debug mode. Intermediate processing images (preprocessing, localization) will be saved to the `debug/` folder. In this mode, extracted text with confidence will also be saved as `.txt` files in `debug/extraction/`.
+Standalone YOLO detection without OCR - useful for testing detection accuracy.
+
+```bash
+uv run gost-ocr detect /path/to/your/images/
+```
 
 ### Localization Only (`localize`)
 
-This command performs preprocessing and stamp localization without text extraction. It's useful for testing and tuning the localization stage.
+This command performs preprocessing and stamp localization without text extraction.
 
 ```bash
-uv run gost-ocr localize /path/to/your/images/ --debug
+uv run gost-ocr localize /path/to/your/images/ --detector=yolo --debug
 ```
-**Arguments and Options:** Same as `pipeline` command.
 
 ### Evaluation (`evaluate`)
 
 This command assesses the quality of the OCR pipeline against ground truth data.
 
-**Note:** Before running `evaluate`, you must execute the `pipeline` command on your ground truth images to generate the necessary OCR output files.
-
 ```bash
 uv run gost-ocr evaluate <GROUND_TRUTH_DIR> --output-dir <OUTPUT_DIR>
 ```
 
-**Arguments and Options:**
+### Common Options
 
-*   `GROUND_TRUTH_DIR` (required): Path to the directory containing ground truth JSON files.
-*   `--output-dir` or `-o`: Path to the directory containing OCR results (JSON files).
-*   `--iou-threshold`: Minimum IoU for successful localization (default: 0.5).
-*   `--cer-threshold`: Maximum CER for successful text recognition (default: 0.1).
-*   `--wer-threshold`: Maximum WER for successful word recognition (default: 0.2).
-*   `--save-report` or `-s`: Save the evaluation report to a JSON file.
-
-### Example
-
-Process all images in the `samples/` directory, searching for the stamp in the bottom-right corner, and save debug files:
-
-```bash
-uv run gost-ocr pipeline samples/ --roi bottom_right --debug
-```
+*   `--roi [POSITION]`: Specifies which part of the image to analyze. Available: `top`, `bottom`, `left`, `right`, `top_left`, `top_right`, `bottom_left`, `bottom_right`, `full_page`, `corners`, `auto` (default).
+*   `--dpi [VALUE]`: Specifies the DPI of the image. Available: `auto` (default), `200`, `300`, `400`, `600`.
+*   `--flip` or `-f`: Attempt all rotations (0°, 90°, 180°, 270°) during preprocessing.
+*   `--debug` or `-d`: Enable debug mode. Save intermediate images to `debug/`.
 
 ## Project Structure
 
-*   `src/gost_ocr/cli.py`: Defines the command-line interface using `Typer`.
-*   `src/gost_ocr/preprocessing.py`: Module for image preprocessing (loading, deskewing, ROI cropping).
-*   `src/gost_ocr/localization.py`: Module for locating the title block on the image.
-*   `src/gost_ocr/extraction.py`: Module for extracting text from the stamp area using `EasyOCR`.
-*   `src/gost_ocr/config.py`: Contains project constants and paths.
-*   `pyproject.toml`: Project description and dependencies.
-
-## Output Format
-
-*   **`output/`**: This directory will contain the `.json` files with the recognition results for each processed image.
-*   **`debug/`**: If the `--debug` option is enabled, this directory will contain subfolders with intermediate images and text output:
-    *   `preprocessing/`: Results of the preprocessing step.
-    *   `preprocessing/roi/`: The cropped Regions of Interest (ROI).
-    *   `localization/`: Images with bounding boxes of found stamp candidates.
-    *   `extraction/`: Contains `.txt` files with extracted text and confidence scores for the most confident stamp per image. Cropped stamp images are no longer saved here.
-
-### Example JSON Output (`<filename>_output.json`)
-
-```json
-{
-    "source_image_path": "src/gost_ocr/tests/test_images/1.png",
-    "stamp_bounding_box": [
-        1488,
-        1831,
-        1226,
-        365
-    ],
-    "text_blocks": [
-        {
-            "text": "ИЗМ",
-            "confidence": 0.999,
-            "box": [
-                [29, 15],
-                [83, 15],
-                [83, 38],
-                [29, 38]
-            ]
-        },
-        {
-            "box": [
-                [96, 15],
-                [175, 15],
-                [175, 39],
-                [96, 39]
-            ]
-        },
-        {
-            "text": "МГТ-2024-ПЗ",
-            "confidence": 0.85,
-            "box": [
-                [454, 296],
-                [858, 298],
-                [858, 336],
-                [454, 334]
-            ]
-        }
-    ],
-    "full_text": "ИЗМ Лист МГТ-2024-ПЗ..."
-}
+```
+src/gost_ocr/
+├── cli.py                      # Typer CLI entrypoint
+├── config.py                  # Configuration and constants
+├── preprocessing.py           # Image preprocessing (deskew, ROI, flip)
+├── detection/                 # Unified detection interface
+│   ├── factory.py            # get_detector() factory
+│   ├── yolo.py              # YOLO detector
+│   └── opencv.py            # OpenCV detector
+├── localization.py         # OpenCV detection (legacy)
+├── extraction.py            # EasyOCR text extraction
+├── evaluation.py            # Metrics (IoU, CER, WER)
+├── models/yolo/
+│   └── best.pt             # Trained YOLO weights
+├── datasets/
+│   ├── train/             # Training synthetic data
+│   └── test/              # Test images + GT labels
+└── tests/
+    ├── analyze_comparison.py
+    └── generate_visualization.py
 ```
 
-## Evaluation Results
+## Evaluation Results (YOLO vs OpenCV)
 
-The system was evaluated on a dataset of 25 synthetic images with varying DPI and GOST stamp forms (FORM_3, FORM_4, FORM_5).
+The system was evaluated on 11 real archive drawings, comparing YOLO and OpenCV detection methods.
 
-*   **Dataset (Ground Truth):** `src/gost_ocr/tests/ground_truth/`
-*   **Evaluation Output:** `output/`
+### Dataset
+- **Training:** 25 synthetic images (DPI 200-400, FORM_3/4/5)
+- **Test:** 11 real archive drawings
+- **Ground Truth:** `src/gost_ocr/datasets/test/labels/`
 
 ### Aggregate Metrics
 
-| Metric                           | Value       |
-| :------------------------------- | :---------- |
-| Images processed                 | 25          |
-| Localization success (IoU ≥ 0.5) | 23/25 (92%) |
-| Text recognition success         | 0/25 (0%)   |
-| Mean IoU                         | 0.86        |
-| Median IoU                       | 0.99        |
-| Mean CER                         | 0.67        |
-| Mean WER                         | 1.47        |
+| Metric | YOLO | OpenCV |
+|--------|-----|-------|
+| Mean IoU | **0.426** | 0.361 |
+| Median IoU | **0.865** | 0.328 |
+| Wins | **6** | 1 |
+| Ties | 4 | 4 |
+| Full detections (IoU > 0.5) | 5 | 3 |
+| Complete failures (IoU = 0) | 5 | 6 |
 
-### Interpretation
+### Key Findings
 
-The evaluation indicates that the system is highly effective at localizing GOST stamps, achieving a 92% success rate and high IoU values. This robust localization forms a strong foundation for the overall automation pipeline. However, the current text recognition component exhibits low accuracy (0% success rate), with high Character Error Rate (CER) and Word Error Rate (WER). This suggests that while stamps are correctly identified, the extracted text often contains errors, necessitating human verification for reliable metadata extraction. Further improvements are required for the OCR stage to achieve fully autonomous operation.
+1. **YOLO outperforms OpenCV** - Winner 6:1 with higher mean and median IoU
+2. **Transfer learning works** - Training on 25 synthetic images generalizes to real scans
+3. **YOLO more stable** - Fewer complete failures (5 vs 6)
+4. **Hybrid approach possible** - Use `auto` mode for best results
 
-## Usage preview
+## Output Format
+
+*   **`output/`**: Contains `.json` files with recognition results.
+*   **`output/*_yolo.json`**: YOLO detection results.
+*   **`output/*_output.json`**: OpenCV detection + OCR results.
+*   **`debug/`**: If `--debug` is enabled, intermediate processing images.
+
+### Example JSON Output
+
+```json
+{
+    "source_image_path": "src/gost_ocr/datasets/test/images/uzly-1-2-3-4-5.jpg",
+    "stamp_bbox": [1222, 1091, 567, 167],
+    "text_blocks": [
+        {
+            "text": "Лист",
+            "confidence": 0.999,
+            "box": [[29, 15], [83, 15], [83, 38], [29, 38]]
+        }
+    ],
+    "full_text": "Лист МГТ-2024-ПЗ..."
+}
+```
+
+## Usage Preview
 
 <video src="https://github.com/user-attachments/assets/b1913a1a-7479-4f1f-ba1a-ba56507206c2" autoplay muted playsinline controls width="600" height="360" >
     Your browser does not support the video tag.
