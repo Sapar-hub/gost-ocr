@@ -360,6 +360,7 @@ def generate_test_dataset(
     dpi_values: list[int] = None,
     forms: list[str] = None,
     artifact_levels: list[str] = None,
+    paper_size: str = "A4",
 ) -> list[dict]:
     """
     Generate a test dataset of synthetic drawings.
@@ -370,6 +371,7 @@ def generate_test_dataset(
         dpi_values: List of DPI values to use
         forms: List of GOST forms to use
         artifact_levels: List of artifact levels
+        paper_size: Paper size (A0, A1, A2, A3, A4)
 
     Returns:
         List of metadata dictionaries for ground truth
@@ -386,11 +388,28 @@ def generate_test_dataset(
 
     metadata_list = []
 
-    canvas_sizes = {
-        200: (1754, 1240),
-        300: (2480, 1754),
-        400: (3508, 2480),
+    paper_sizes = {
+        "A0": (841, 1189),
+        "A1": (594, 841),
+        "A2": (420, 594),
+        "A3": (297, 420),
+        "A4": (210, 297),
     }
+
+    def mm_to_px(w_mm, h_mm, dpi):
+        return (int(w_mm * dpi / 25.4), int(h_mm * dpi / 25.4))
+
+    a_series_sizes = {}
+    for size_name in ["A0", "A1", "A2", "A3", "A4"]:
+        w_mm, h_mm = paper_sizes[size_name]
+        a_series_sizes[size_name] = {
+            dpi: mm_to_px(w_mm, h_mm, dpi) for dpi in dpi_values
+        }
+
+    if paper_size not in a_series_sizes:
+        paper_size = "A4"
+
+    canvas_sizes = a_series_sizes[paper_size]
 
     for i in range(num_samples):
         dpi = random.choice(dpi_values)
@@ -402,7 +421,7 @@ def generate_test_dataset(
             output_dir / f"synthetic_{form_name}_{dpi}dpi_{artifact_level}_{i:03d}.png"
         )
 
-        canvas_size = canvas_sizes.get(dpi, canvas_sizes[300])
+        canvas_size = canvas_sizes.get(dpi, canvas_sizes.get(dpi_values[0], (2480, 3508)))
 
         meta = generate_synthetic_drawing(
             form=form,

@@ -367,6 +367,27 @@ def localize(
 
     found_count = sum(1 for r in localization_results if r.stamp is not None)
     print(f"\n=== ИТОГО: найдено штампов {found_count}/{len(localization_results)} ===")
+    
+    if not debug:
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        for result in localization_results:
+            if result.stamp:
+                output_filename = (
+                    f"{result.preprocessed.original_path.stem}_localization.json"
+                )
+                output_path = OUTPUT_DIR / output_filename
+                
+                output_data = {
+                    "stamp": asdict(result.stamp),
+                    "original_path": str(result.preprocessed.original_path),
+                    "roi_bbox": result.preprocessed.roi_bbox,
+                    "flip_angle": result.preprocessed.flip_angle,
+                }
+                
+                with open(output_path, "w", encoding="utf-8") as f:
+                    json.dump(output_data, f, ensure_ascii=False, indent=4)
+                print(f"    -> Результат сохранен в: {output_path}")
+
     return localization_results
 
 

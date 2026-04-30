@@ -234,6 +234,7 @@ def generate_full_page_synthetic(
     artifact_levels: list[str] = None,
     drawing_complexity: str = "medium",
     orientation: str = "random",
+    paper_size: str = "A4",
 ) -> list[dict]:
     """Generate synthetic full-page technical drawings with stamp."""
     import json
@@ -250,16 +251,23 @@ def generate_full_page_synthetic(
 
     metadata_list = []
 
-    canvas_sizes = {
-        200: (1754, 2480),
-        300: (2480, 3508),
-        400: (3508, 4961),
+    paper_sizes = {
+        "A0": (841, 1189),
+        "A1": (594, 841),
+        "A2": (420, 594),
+        "A3": (297, 420),
+        "A4": (210, 297),
     }
-    canvas_sizes_landscape = {
-        200: (2480, 1754),
-        300: (3508, 2480),
-        400: (4961, 3508),
-    }
+
+    def mm_to_px(w_mm, h_mm, dpi):
+        return (int(w_mm * dpi / 25.4), int(h_mm * dpi / 25.4))
+
+    a_series_sizes = {}
+    for size_name in ["A0", "A1", "A2", "A3", "A4"]:
+        w_mm, h_mm = paper_sizes[size_name]
+        a_series_sizes[size_name] = {
+            dpi: mm_to_px(w_mm, h_mm, dpi) for dpi in dpi_values
+        }
 
     for i in range(num_samples):
         dpi = random.choice(dpi_values)
@@ -275,13 +283,16 @@ def generate_full_page_synthetic(
         else:
             is_landscape = False
 
-        # Canvas size
+        # Canvas size based on paper_size
+        if paper_size not in a_series_sizes:
+            paper_size = "A4"
+        size_dict = a_series_sizes[paper_size]
+        default_size = size_dict.get(dpi_values[0], (2480, 3508))
         if is_landscape:
-            canvas_w, canvas_h = canvas_sizes_landscape.get(
-                dpi, canvas_sizes_landscape[300]
-            )
+            size_w, size_h = size_dict.get(dpi, default_size)
+            canvas_w, canvas_h = size_h, size_w
         else:
-            canvas_w, canvas_h = canvas_sizes.get(dpi, canvas_sizes[300])
+            canvas_w, canvas_h = size_dict.get(dpi, default_size)
 
         # Create blank canvas
         canvas = np.ones((canvas_h, canvas_w, 3), dtype=np.uint8) * 255

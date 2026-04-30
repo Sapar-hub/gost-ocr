@@ -1,9 +1,0 @@
-# YOLO dataset config for GOST stamp detection
-
-path: /home/saparch/playground/metrogiprotrans/src/yolo_dataset
-train: images/train
-val: images/val
-
-nc: 1  # number of classes
-names:
-  0: stamp
