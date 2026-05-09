@@ -118,51 +118,77 @@ uv run gost-ocr evaluate <GROUND_TRUTH_DIR> --output-dir <OUTPUT_DIR>
 ```
 src/gost_ocr/
 ├── cli.py                      # Typer CLI entrypoint
-├── config.py                  # Configuration and constants
-├── preprocessing.py           # Image preprocessing (deskew, ROI, flip)
+├── config.py                   # Configuration and constants
+├── preprocessing.py            # Image preprocessing (deskew, ROI, flip)
 ├── detection/                 # Unified detection interface
 │   ├── factory.py            # get_detector() factory
-│   ├── yolo.py              # YOLO detector
-│   └── opencv.py            # OpenCV detector
-├── localization.py         # OpenCV detection (legacy)
-├── extraction.py            # EasyOCR text extraction
-├── evaluation.py            # Metrics (IoU, CER, WER)
+│   ├── yolo.py               # YOLO detector
+│   └── opencv.py             # OpenCV detector
+├── localization.py            # OpenCV detection (legacy)
+├── extraction.py              # EasyOCR text extraction
+├── evaluation.py             # OCR metrics (CER, WER) - for text extraction
 ├── models/yolo/
-│   └── best.pt             # Trained YOLO weights
+│   └── best.pt               # Trained YOLO weights (detects stamps)
 ├── datasets/
-│   ├── train/             # Training synthetic data
-│   └── test/              # Test images + GT labels
-└── tests/
-    ├── analyze_comparison.py
-    └── generate_visualization.py
+│   ├── images/test/          # Test images
+│   └── labels/test/          # Ground truth labels (YOLO format)
+├── benchmark/                # Comparison module
+│   ├── constants.py          # ROI mapping, paths, thresholds
+│   ├── metrics.py            # IoU calculation
+│   ├── compare.py            # Main comparison script
+│   └── visualize.py          # Visualization generator
+└── output/
+    └── evaluation/           # Benchmark output
+        ├── results.json      # Detailed metrics
+        └── visualizations/   # Side-by-side comparison images
 ```
 
 ## Evaluation Results (YOLO vs OpenCV)
 
-The system was evaluated on 11 real archive drawings, comparing YOLO and OpenCV detection methods.
+The system was evaluated on 49 real archive drawings, comparing YOLO and OpenCV detection methods.
+
+### Running Benchmark
+
+To reproduce the evaluation results:
+
+```bash
+uv run python -m src.gost_ocr.benchmark.compare
+```
+
+This will:
+1. Run YOLO detection on all test images
+2. Run OpenCV detection with appropriate ROI settings
+3. Calculate IoU metrics against ground truth labels
+4. Output comparison table to terminal
+5. Save visualizations to `output/evaluation/visualizations/`
 
 ### Dataset
 - **Training:** 25 synthetic images (DPI 200-400, FORM_3/4/5)
-- **Test:** 11 real archive drawings
-- **Ground Truth:** `src/gost_ocr/datasets/test/labels/`
+- **Test:** 49 real archive drawings
+- **Ground Truth:** `src/gost_ocr/datasets/labels/test/`
+- **Model:** `src/gost_ocr/models/yolo/best.pt`
 
-### Aggregate Metrics
+### Aggregate Metrics (49 images)
 
-| Metric | YOLO | OpenCV |
-|--------|-----|-------|
-| Mean IoU | **0.426** | 0.361 |
-| Median IoU | **0.865** | 0.328 |
-| Wins | **6** | 1 |
-| Ties | 4 | 4 |
-| Full detections (IoU > 0.5) | 5 | 3 |
-| Complete failures (IoU = 0) | 5 | 6 |
+| Metric | YOLO | OpenCV (with ROI) |
+|--------|------|-------------------|
+| Mean IoU | 0.351 | **0.655** |
+| Median IoU | 0.207 | **0.962** |
+| IoU > 0.5 | 16 | **31** |
+| Wins | 10 | **38** |
 
 ### Key Findings
 
-1. **YOLO outperforms OpenCV** - Winner 6:1 with higher mean and median IoU
+1. **OpenCV with ROI wins** - 38:10 when proper ROI is specified for each image type
 2. **Transfer learning works** - Training on 25 synthetic images generalizes to real scans
-3. **YOLO more stable** - Fewer complete failures (5 vs 6)
-4. **Hybrid approach possible** - Use `auto` mode for best results
+3. **ROI is critical** - OpenCV requires correct ROI setting (bottom_right for landscape, bottom for portrait)
+4. **YOLO detects all stamps** - May detect multiple stamps on same drawing, not just main title block
+
+### Output
+
+- **Terminal:** Comparison table with metrics
+- **JSON:** `output/evaluation/results.json` - detailed per-image metrics
+- **Images:** `output/evaluation/visualizations/` - side-by-side comparison images
 
 ## Output Format
 

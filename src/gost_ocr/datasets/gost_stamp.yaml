@@ -1,0 +1,6 @@
+# YOLO dataset config
+train: images/train
+val: images/val
+
+nc: 1
+names: ['stamp']

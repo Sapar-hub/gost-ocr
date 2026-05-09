@@ -1,8 +1,8 @@
 import re
 from pathlib import Path
 
-BASE_DIR = Path(__file__).parent.parent
-DEFAULT_IMAGES_PATH = BASE_DIR / "test-all-cv"
+BASE_DIR = Path(__file__).parent
+DEFAULT_IMAGES_PATH = BASE_DIR / "datasets" / "yolo" / "images" / "test"
 
 FORM_3_ASPECT_RATIO = 185 / 55
 FORM_4_ASPECT_RATIO = 185 / 115
@@ -66,5 +66,5 @@ OUTPUT_DIR = Path("output")
 
 YOLO_BASE_MODEL = "yolov8n.pt"
 YOLO_TRAINED_MODEL = Path(__file__).parent / "models/yolo/best.pt"
-YOLO_DATASET_DIR = Path(__file__).parent / "datasets/train"
-YOLO_TEST_DIR = Path(__file__).parent / "datasets/test"
+YOLO_DATASET_DIR = Path(__file__).parent / "datasets/yolo/images/train"
+YOLO_TEST_DIR = Path(__file__).parent / "datasets/yolo/images/test"

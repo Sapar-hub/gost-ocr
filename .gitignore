@@ -1,0 +1,26 @@
+__pycache__
+.env
+.venv
+.mypy_cache/
+.ruff_cache/
+
+# Generated artifacts
+debug/
+output/
+comparison_results.json
+
+# YOLO artifacts
+runs/
+*.pt
+!src/gost_ocr/models/yolo/best.pt
+
+# Python
+*.pyc
+*.egg-info/
+
+# Training data - synthetically generated images (see src/augment/)
+src/gost_ocr/datasets/images/train/
+src/gost_ocr/datasets/images/val/
+src/gost_ocr/datasets/labels/train/
+src/gost_ocr/datasets/labels/val/
+
