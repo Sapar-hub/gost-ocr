@@ -51,7 +51,7 @@ def detect_dpi(image: np.ndarray) -> int:
 
 
 def detect_roi_type(image_path: str | Path) -> str:
-    """Detect ROI type from image path: full_page if path contains 'fullpage' or width > 2000px."""
+    """Detect ROI type from image content: landscape→bottom_right, portrait→bottom, tall→right."""
     from pathlib import Path
 
     path_str = str(image_path).lower()
@@ -66,20 +66,21 @@ def detect_roi_type(image_path: str | Path) -> str:
 
     try:
         if path.is_dir():
-            for f in path.iterdir():
+            for f in sorted(path.iterdir()):
                 if f.suffix.lower() in [".png", ".jpg", ".jpeg"]:
                     img = cv2.imread(str(f))
                     if img is not None:
                         h, w = img.shape[:2]
-                        if w > 2000:
-                            return "full_page"
-                        break
+                        if h > w:
+                            return "right" if h / w > 1.3 else "bottom"
+                        return "bottom_right"
+                    break
         else:
             img = cv2.imread(str(path))
             if img is not None:
                 h, w = img.shape[:2]
-                if w > 2000:
-                    return "full_page"
+                if h > w:
+                    return "right" if h / w > 1.3 else "bottom"
     except Exception:
         pass
 
