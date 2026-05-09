@@ -153,9 +153,15 @@ def generate_visualizations(
     print(f"\n=== Генерация визуализаций (топ {len(top_names)}) ===")
 
     count = 0
+    skipped = 0
     for image_name in top_names:
         yolo_result = yolo_dict.get(image_name)
         opencv_result = opencv_dict.get(image_name)
+
+        if yolo_result is None:
+            skipped += 1
+            continue
+
         image_name = yolo_result.image_name
         opencv_result = opencv_dict.get(image_name)
 
@@ -171,6 +177,19 @@ def generate_visualizations(
             continue
 
         gt_bbox = gt_data.get(image_name)
+
+        # Create placeholder result if None
+        from src.gost_ocr.benchmark.metrics import DetectionResult
+        if opencv_result is None:
+            opencv_result = DetectionResult(
+                image_name=image_name,
+                pred_bbox=None,
+                gt_bbox=None,
+                iou=0.0,
+                has_prediction=False,
+                has_ground_truth=False,
+                method="opencv"
+            )
 
         comparison = create_comparison_image(
             img_path, yolo_result, opencv_result, gt_bbox

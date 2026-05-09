@@ -323,7 +323,7 @@ def main():
 
     # Визуализация (опционально)
     from src.gost_ocr.benchmark.visualize import generate_visualizations
-    vis_dir = generate_visualizations(yolo_results, opencv_results, gt_data, output_dir)
+    vis_dir = generate_visualizations(yolo_results, opencv_results, gt_data, output_dir, max_images=50)
     print(f"\nВизуализации: {vis_dir}")
 
     # Сохраняем сырые результаты

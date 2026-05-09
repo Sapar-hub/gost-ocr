@@ -6,8 +6,6 @@ __pycache__
 
 # Generated artifacts
 debug/
-output/
-comparison_results.json
 
 # YOLO artifacts
 runs/
@@ -23,4 +21,10 @@ src/gost_ocr/datasets/images/train/
 src/gost_ocr/datasets/images/val/
 src/gost_ocr/datasets/labels/train/
 src/gost_ocr/datasets/labels/val/
+
+# Output - keep only visualizations
+output/*
+!output/evaluation/
+output/evaluation/*
+!output/evaluation/visualizations/
 
