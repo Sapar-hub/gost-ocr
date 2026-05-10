@@ -91,17 +91,16 @@ $$IoU = \frac{Intersection(B_{pred}, B_{gt})}{Union(B_{pred}, B_{gt})}$$
 На рисунках (Рис. 1–49, см. `output/evaluation/visualizations/`) представлены визуальные примеры работы обоих методов на тестовых изображениях. Для каждого тестового изображения показаны: исходное изображение с ground truth bbox (зелёный), результат YOLO (красный) и результат OpenCV (синий).
 
 Лучшие результаты YOLO (IoU > 0.95), Рис. 10, 11, 13, 15, 37:
-- test_11: IoU 0.972 (Рис. 11)
-- test_15: IoU 0.971 (Рис. 15)
-- test_10: IoU 0.970 (Рис. 10)
-- test_13: IoU 0.963 (Рис. 13)
-- test_37: IoU 0.949 (Рис. 37)
 
-Лучшие результаты OpenCV (IoU > 0.98):
-- test_47: IoU 0.994 (Рис. 47)
-- test_43: IoU 0.991 (Рис. 43)
-- test_42: IoU 0.989 (Рис. 42)
-- test_15: IoU 0.990 (Рис. 15)
+<img src="../../output/evaluation/visualizations/test_11_comparison.jpg" width="400"/> <img src="../../output/evaluation/visualizations/test_15_comparison.jpg" width="400"/>
+<img src="../../output/evaluation/visualizations/test_10_comparison.jpg" width="400"/> <img src="../../output/evaluation/visualizations/test_13_comparison.jpg" width="400"/>
+<img src="../../output/evaluation/visualizations/test_37_comparison.jpg" width="400"/>
+
+Лучшие результаты OpenCV (IoU > 0.98), Рис. 17, 42, 43, 47:
+
+<img src="../../output/evaluation/visualizations/test_47_comparison.jpg" width="400"/> <img src="../../output/evaluation/visualizations/test_17_comparison.jpg" width="400"/>
+<img src="../../output/evaluation/visualizations/test_43_comparison.jpg" width="400"/> <img src="../../output/evaluation/visualizations/test_15_comparison.jpg" width="400"/>
+<img src="../../output/evaluation/visualizations/test_42_comparison.jpg" width="400"/>
 
 Случаи с IoU = 0 связаны с детекцией неосновной надписи (дополнительные штампы на чертеже).
 
@@ -130,9 +129,21 @@ $$IoU = \frac{Intersection(B_{pred}, B_{gt})}{Union(B_{pred}, B_{gt})}$$
 
 Значительная часть случаев с IoU = 0 связана не с отсутствием детекции, а с детекцией неосновной надписи. Модель обнаруживает все прямоугольные области, соответствующие форме штампа, включая дополнительные элементы чертежа. Это подтверждает необходимость обучения на двух классах (основная надпись / дополнительные элементы). На Рис. 7, 14, 16, 19 визуально видно, что YOLO детектирует дополнительные штампы в верхней части чертежа, а не основную надпись внизу.
 
+Примеры failure cases YOLO (Рис. 7, 14, 19, 23, 30):
+
+<img src="../../output/evaluation/visualizations/test_07_comparison.jpg" width="400"/> <img src="../../output/evaluation/visualizations/test_14_comparison.jpg" width="400"/>
+<img src="../../output/evaluation/visualizations/test_19_comparison.jpg" width="400"/> <img src="../../output/evaluation/visualizations/test_23_comparison.jpg" width="400"/>
+<img src="../../output/evaluation/visualizations/test_30_comparison.jpg" width="400"/>
+
 **Случаи с IoU = 0 у OpenCV (11 изображений):** Рис. 2, 19, 20, 22, 24, 28, 35, 39, 40, 49
 
 При автоматическом определении ROI OpenCV обнаружил штампы во всех 49 случаях. 11 случаев с IoU = 0 связаны с несовпадением области поиска (например, штамп частично находится за пределами указанной области ROI) или некорректным определением DPI. На Рис. 2, 19, 20 видно, что ROI область не пересекается с реальным положением штампа.
+
+Примеры failure cases OpenCV (Рис. 2, 19, 20, 22, 24):
+
+<img src="../../output/evaluation/visualizations/test_02_comparison.jpg" width="400"/> <img src="../../output/evaluation/visualizations/test_19_comparison.jpg" width="400"/>
+<img src="../../output/evaluation/visualizations/test_20_comparison.jpg" width="400"/> <img src="../../output/evaluation/visualizations/test_22_comparison.jpg" width="400"/>
+<img src="../../output/evaluation/visualizations/test_24_comparison.jpg" width="400"/>
 
 **Сравнение методов:**
 
