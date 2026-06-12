@@ -42,7 +42,7 @@ src/gost_ocr/
 
 src/gost_ocr/benchmark/ # Comparison module
 ├── constants.py         # ROI mapping, paths
-├── metrics.py           # IoU calculation
+├── metrics.py           # IoU, Precision/Recall/F1
 ├── compare.py           # Main comparison script
 └── visualize.py         # Visualization generator
 ```

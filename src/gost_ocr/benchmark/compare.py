@@ -30,6 +30,8 @@ from src.gost_ocr.benchmark.metrics import (
     aggregate_metrics,
     box_iou,
     compare_methods,
+    compute_metrics,
+    print_metrics,
     yolo_label_to_bbox,
 )
 
@@ -244,27 +246,40 @@ def print_results(
     opencv_results: List[DetectionResult],
     comparison: dict
 ):
-    """Вывод результатов в терминал."""
-    yolo_metrics = aggregate_metrics(yolo_results, IoU_SUCCESS_THRESHOLD)
-    opencv_metrics = aggregate_metrics(opencv_results, IoU_SUCCESS_THRESHOLD)
+    """Вывод результатов в терминал с IoU и P/R/F1."""
+    yolo_agg = aggregate_metrics(yolo_results, IoU_SUCCESS_THRESHOLD)
+    opencv_agg = aggregate_metrics(opencv_results, IoU_SUCCESS_THRESHOLD)
+    yolo_metrics = compute_metrics(yolo_results, IoU_SUCCESS_THRESHOLD)
+    opencv_metrics = compute_metrics(opencv_results, IoU_SUCCESS_THRESHOLD)
 
-    print("\n" + "=" * 60)
-    print("           СРАВНЕНИЕ МЕТОДОВ ЛОКАЛИЗАЦИИ ШТАМПОВ")
-    print("=" * 60)
+    print("\n" + "=" * 70)
+    print("         СРАВНЕНИЕ МЕТОДОВ ЛОКАЛИЗАЦИИ ШТАМПОВ")
+    print("=" * 70)
     print(f"\nТестовых изображений: {len(yolo_results)}")
     print(f"Порог успешной локализации: IoU > {IoU_SUCCESS_THRESHOLD}\n")
 
-    # Таблица
+    # Таблица IoU
+    print("--- IoU ---")
     header = f"| {'Метод':<10} | {'Mean IoU':>9} | {'Median IoU':>11} | {'IoU>0.5':>7} | {'IoU=0':>6} |"
     separator = "-" * len(header)
-
     print(header)
     print(separator)
-    print(f"| {'YOLO':<10} | {yolo_metrics.mean_iou:>9.3f} | {yolo_metrics.median_iou:>11.3f} | {yolo_metrics.success_count:>7} | {yolo_metrics.fail_count:>6} |")
-    print(f"| {'OpenCV':<10} | {opencv_metrics.mean_iou:>9.3f} | {opencv_metrics.median_iou:>11.3f} | {opencv_metrics.success_count:>7} | {opencv_metrics.fail_count:>6} |")
+    print(f"| {'YOLO':<10} | {yolo_agg.mean_iou:>9.3f} | {yolo_agg.median_iou:>11.3f} | {yolo_agg.success_count:>7} | {yolo_agg.fail_count:>6} |")
+    print(f"| {'OpenCV':<10} | {opencv_agg.mean_iou:>9.3f} | {opencv_agg.median_iou:>11.3f} | {opencv_agg.success_count:>7} | {opencv_agg.fail_count:>6} |")
     print(separator)
 
-    print(f"\nПобедитель: ", end="")
+    # Таблица P/R/F1 (все модели)
+    print("\n--- Precision / Recall / F1 (IoU ≥ 0.5) ---")
+    p_header = f"| {'Метод':<10} | {'Prec':>7} | {'Recall':>7} | {'F1':>7} | {'Det.%':>7} | {'n':>4} |"
+    p_sep = "-" * len(p_header)
+    print(p_header)
+    print(p_sep)
+    print(f"| {'YOLO':<10} | {yolo_metrics['precision']:>7.3f} | {yolo_metrics['recall']:>7.3f} | {yolo_metrics['f1']:>7.3f} | {yolo_metrics['detection_rate']*100:>6.1f}% | {yolo_metrics['n_images']:>4d} |")
+    print(f"| {'OpenCV':<10} | {opencv_metrics['precision']:>7.3f} | {opencv_metrics['recall']:>7.3f} | {opencv_metrics['f1']:>7.3f} | {opencv_metrics['detection_rate']*100:>6.1f}% | {opencv_metrics['n_images']:>4d} |")
+    print(p_sep)
+
+    # Победитель по IoU
+    print(f"\nПобедитель (сравнение IoU): ", end="")
     if comparison["opencv_wins"] > comparison["yolo_wins"]:
         print(f"OpenCV ({comparison['opencv_wins']}/{len(yolo_results)})")
     elif comparison["yolo_wins"] > comparison["opencv_wins"]:
@@ -283,7 +298,7 @@ def print_results(
     for r in sorted_opencv[:5]:
         print(f"  {r.image_name}: IoU={r.iou:.3f}")
 
-    print("\n" + "=" * 60)
+    print("\n" + "=" * 70)
 
 
 def main():
@@ -326,6 +341,10 @@ def main():
     vis_dir = generate_visualizations(yolo_results, opencv_results, gt_data, output_dir, max_images=50)
     print(f"\nВизуализации: {vis_dir}")
 
+    # Агрегированные метрики
+    yolo_metrics = compute_metrics(yolo_results, IoU_SUCCESS_THRESHOLD)
+    opencv_metrics = compute_metrics(opencv_results, IoU_SUCCESS_THRESHOLD)
+
     # Сохраняем сырые результаты
     results_data = {
         "timestamp": datetime.now().isoformat(),
@@ -348,7 +367,9 @@ def main():
             }
             for r in opencv_results
         ],
-        "comparison": comparison
+        "comparison": comparison,
+        "yolo_metrics": {k: v for k, v in yolo_metrics.items() if isinstance(v, (int, float))},
+        "opencv_metrics": {k: v for k, v in opencv_metrics.items() if isinstance(v, (int, float))},
     }
 
     with open(output_dir / "results.json", "w") as f:

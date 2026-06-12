@@ -12,16 +12,18 @@ Built as the first stage of a scan-to-BIM pipeline for archival engineering docu
 
 Evaluated on **49 real archival drawings** (DWG exports, various DPI, mixed quality):
 
-| Method | Mean IoU | Median IoU | Successful (IoU > 0.5) | Wins |
-|--------|----------|------------|------------------------|------|
-| OpenCV (auto ROI) | **0.655** | **0.962** | **31 / 49** | **38** |
-| YOLO (synthetic training) | 0.351 | 0.207 | 16 / 49 | 10 |
+| Method | Mean IoU | Median IoU | Precision | Recall | F1 | Successful (IoU > 0.5) | Wins |
+|--------|----------|------------|-----------|--------|-----|------------------------|------|
+| OpenCV (auto ROI) | **0.655** | **0.962** | **0.646** | **0.646** | **0.646** | **31 / 49** | **38** |
+| YOLO (synthetic training) | 0.351 | 0.207 | 0.327 | 0.327 | 0.327 | 16 / 49 | 5 |
 
 **Key finding:** OpenCV with automatic ROI selection based on document orientation significantly outperforms YOLO trained on synthetic data. GOST standardization of stamp position and dimensions makes geometric heuristics more robust than a neural network trained on 25 images.
 
 YOLO failure analysis: the model detects all rectangular stamp-like elements, not just the main title block. Two-class training (main stamp vs. auxiliary elements) is the recommended next step.
 
 See [`docs/article/ARTICLE.md`](docs/article/ARTICLE.md) for the full comparison paper.
+
+> A broader comparison including **Faster R-CNN** and **Hybrid (YOLO+CV)** approaches (with a different synthetic generation strategy) is available in the [companion project repo](https://github.com/Sapar-hub/aie-group-2-sapar/tree/1c6b00ee90682ceb457b9125f0f6f28514502c1e/project). That work also explores confidence threshold sweeps and data versioning for the DL detection pipeline.
 
 ---
 

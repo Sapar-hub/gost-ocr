@@ -2,10 +2,14 @@
 Функции для расчёта метрик.
 
 IoU (Intersection over Union) - основная метрика локализации.
+Precision / Recall / F1 — качество детекции при пороге IoU ≥ 0.5.
+Detection rate — доля изображений с найденным штампом.
 """
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Tuple
+
+import numpy as np
 
 
 @dataclass
@@ -170,3 +174,93 @@ def compare_methods(
         "opencv_wins": opencv_wins,
         "ties": ties
     }
+
+
+def compute_metrics(
+    results: List[DetectionResult],
+    iou_threshold: float = 0.5,
+) -> dict:
+    """
+    Полный расчёт метрик детекции.
+
+    Возвращает словарь с метриками:
+        n_images, n_found, detection_rate,
+        iou_mean/std/median/max/min,
+        iou_at_threshold, precision, recall, f1, tp, fp, fn
+    """
+    total = len(results)
+    if total == 0:
+        return {}
+
+    found = [r for r in results if r.has_prediction]
+    n_found = len(found)
+    n_with_gt = len([r for r in results if r.has_ground_truth])
+
+    ious = [r.iou for r in results]
+    ious_found = [r.iou for r in found]
+
+    tp = sum(1 for r in results if r.has_prediction and r.iou >= iou_threshold)
+    fp = n_found - tp
+    fn = n_with_gt - tp
+
+    precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+    recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
+
+    return {
+        "n_images": total,
+        "n_found": n_found,
+        "detection_rate": n_found / total,
+        "iou_mean": float(np.mean(ious)),
+        "iou_std": float(np.std(ious)),
+        "iou_median": float(np.median(ious)),
+        "iou_max": float(np.max(ious)),
+        "iou_min": float(np.min(ious)),
+        "iou_found_mean": float(np.mean(ious_found)) if ious_found else float("nan"),
+        "iou_at_threshold": sum(1 for i in ious if i >= iou_threshold) / total,
+        "success_count": sum(1 for i in ious if i > iou_threshold),
+        "fail_count": sum(1 for i in ious if i == 0.0),
+        "precision": precision,
+        "recall": recall,
+        "f1": f1,
+        "tp": tp,
+        "fp": fp,
+        "fn": fn,
+    }
+
+
+def best_matching_bbox(
+    pred_bboxes: List[Tuple[int, int, int, int]],
+    gt_bboxes: List[Tuple[int, int, int, int]],
+) -> Optional[Tuple[int, int, int, int]]:
+    """
+    Находит предсказанный bbox с наибольшим IoU относительно GT.
+    Полезно когда модель возвращает несколько bbox, а GT один.
+    """
+    if not pred_bboxes:
+        return None
+    if not gt_bboxes:
+        return pred_bboxes[0]
+
+    best_iou_val = 0.0
+    best_bbox = None
+    for pb in pred_bboxes:
+        for gt_bbox in gt_bboxes:
+            iou_val = box_iou(list(pb), list(gt_bbox))
+            if iou_val > best_iou_val:
+                best_iou_val = iou_val
+                best_bbox = pb
+    return best_bbox
+
+
+def print_metrics(metrics: dict, prefix: str = "") -> None:
+    """Вывод метрик в терминал."""
+    print(f"{prefix}Images:         {metrics.get('n_images', 'N/A')}")
+    print(f"{prefix}Detected:        {metrics.get('n_found', 'N/A')} ({metrics.get('detection_rate', 0)*100:.1f}%)")
+    print(f"{prefix}IoU mean:        {metrics.get('iou_mean', 0):.3f}")
+    print(f"{prefix}IoU std:         {metrics.get('iou_std', 0):.3f}")
+    print(f"{prefix}IoU median:      {metrics.get('iou_median', 0):.3f}")
+    print(f"{prefix}IoU >= 0.5:      {metrics.get('iou_at_threshold', 0)*100:.1f}%")
+    print(f"{prefix}Precision:       {metrics.get('precision', 0):.3f}")
+    print(f"{prefix}Recall:          {metrics.get('recall', 0):.3f}")
+    print(f"{prefix}F1:              {metrics.get('f1', 0):.3f}")
