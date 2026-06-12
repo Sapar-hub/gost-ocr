@@ -113,6 +113,20 @@ Python 3.12 · OpenCV · YOLOv8n · EasyOCR · Typer · uv
 
 ---
 
+## Live API
+
+A deployed instance of the stamp detection service is available at:
+
+[https://stamps.saparlabs.org](https://stamps.saparlabs.org)
+
+```bash
+curl -X POST -F "file=@drawing.png" https://stamps.saparlabs.org/predict
+```
+
+Swagger UI at `/docs`.
+
+---
+
 ## Paper
 
 [Сравнение методов локализации штампов технической документации ГОСТ: OpenCV vs YOLO](docs/article/ARTICLE.md)
